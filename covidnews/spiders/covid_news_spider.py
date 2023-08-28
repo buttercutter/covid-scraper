@@ -34,10 +34,11 @@ class CovidNewsSpider(scrapy.Spider):
     def search_archives(self, search_keywords, countries, creators, types, languages):
 
         queries = []
+        keyword_queries = []
 
         # Search by keywords
         for keyword in search_keywords:
-            queries.append(f"subject:{keyword.lower()}")
+            keyword_queries.append(f"subject:{keyword.lower()}")
 
         # Search by identifier prefix
         for country in countries:
@@ -56,7 +57,7 @@ class CovidNewsSpider(scrapy.Spider):
             queries.append(f"language:{lang}")
 
         # Combine queries
-        full_query = " OR ".join(queries)
+        full_query = " AND ".join(queries) + " AND " + " OR ".join(keyword_queries)
 
         # For ChunkedEncodingError (connection broken issue)
         MAX_RETRIES = 3
@@ -81,7 +82,7 @@ class CovidNewsSpider(scrapy.Spider):
     def start_requests(self):
         for url in self.start_urls:
             if "web.archive.org" in url:
-                countries = ['SG']
+                countries = [] #['SG']
                 creators = [] #['CNN', 'CNA']
                 types = ['texts']
                 languages = ['English']
@@ -90,15 +91,20 @@ class CovidNewsSpider(scrapy.Spider):
 
                 # Process results
                 for result in search:
+
                     # Get identifier
                     identifier = result['identifier']
 
                     # Get timestamp from CDX API
-                    cdx_url = f'https://web.archive.org/cdx/search/cdx?url={identifier}'
+                    cdx_url = f'https://web.archive.org/cdx/search/cdx?url={identifier}&output=json'
+                    print(f"cdx_url = {cdx_url}")
                     MAX_CDX_RETRIES = 3
 
                     try:
+                        # Request CDX API
                         r = requests.get(cdx_url)
+
+                        # Parse response
                         results = r.json()
 
                     except ConnectionError as e:
@@ -111,7 +117,14 @@ class CovidNewsSpider(scrapy.Spider):
 
                         raise # reraise error if max retries reached
 
-                    timestamp = cdx[-1][1]
+                    timestamp = None
+
+                    try:
+                        # Extract timestamp
+                        timestamp = results[-1][1]
+                        print(f"timestamp = {timestamp}")
+                    except IndexError:
+                        print("No results from CDX")
 
                     # Lookup item metadata
                     try:
@@ -123,18 +136,25 @@ class CovidNewsSpider(scrapy.Spider):
                     except Exception as e:
                         print("Error retrieving metadata: ", e)
 
-                    if not identifier or not timestamp:
+                    if not identifier:
                         print(f"url missing")
                         continue
 
                     else:
-                        # Construct Wayback URL
-                        wayback_url = f'https://web.archive.org/web/{timestamp}/{identifier}'
-                        print(f"wayback_url = {wayback_url}")
-
                         # Set the RETRY_TIMES setting to specify how many times to retry failed requests.
                         RETRY_TIMES = 5
-                        yield scrapy.Request(wayback_url, callback=self.parse, meta={'retry_times': RETRY_TIMES})
+
+                        if timestamp:
+                            # Construct Wayback URL
+                            wayback_url = f'https://web.archive.org/web/{timestamp}/{identifier}'
+                            print(f"wayback_url = {wayback_url}")
+                            yield scrapy.Request(wayback_url, callback=self.parse, meta={'retry_times': RETRY_TIMES})
+
+                        else:
+                            # Construct url from 'identifier-access' field
+                            identifier_url = metadata.get("identifier-access")
+                            print(f"identifier_url = {identifier_url}")
+                            yield scrapy.Request(identifier_url, callback=self.parse, meta={'retry_times': RETRY_TIMES})
 
             else:
                 yield SplashRequest(
@@ -202,7 +222,8 @@ class CovidNewsSpider(scrapy.Spider):
                 title = parsed_article['title']
 
             body = article.css('div.article p::text').getall() or \
-                   article.css('div.text-long').getall()
+                   article.css('div.text-long').getall() or \
+                   article.css('main #maincontent div.container pre::text').getall()
             body = '\n'.join(body)
 
             print(f"title = {title} , body = {body}")
@@ -262,16 +283,24 @@ class CovidNewsSpider(scrapy.Spider):
         elif 'straitstimes' in response.url:
             # Extract articles from ST
             return response.css('div.container > div.grid.cards > div.card')
+        elif 'archive.org' in response.url:
+            # Extract article (only the FULL_TEXT download page) from archive.org
+            return response.css('a.format-summary.download-pill:contains("FULL TEXT")::attr(href)')
+
 
     def get_source(self, response):
         if 'channelnewsasia' in response.url:
             return 'CNA'
         elif 'straitstimes' in response.url:
             return 'ST'
-        elif 'web.archive.org' in response.url:
+        elif 'archive.org' in response.url:
             return 'archive'
 
     def parse_article(self, article, response):
+        title = "testing123"
+        link = "testing123"
+        date = "testing123"
+
         if 'channelnewsasia' in response.url:
             title = article.css('title::text').get() or \
                     article.css('h1.entry-title::text').get() or \
@@ -289,12 +318,20 @@ class CovidNewsSpider(scrapy.Spider):
             link = article.css('a::attr(href)').get()
             date = article.css('time::text').get()
 
-        elif 'web.archive.org' in response.url:
-            title = article.css('title::text').get()
+        elif 'archive.org' in response.url:
+            print("we are here, nice !!!")
+            title = response.css('meta[property="og:title"]::attr(content)').get() or \
+                    article.css('meta[property="og:title"]::attr(content)').get()
+            link = response.css('a.format-summary:contains("FULL TEXT")::attr(href)').get() or \
+                   article.css('a.format-summary:contains("FULL TEXT")::attr(href)').get()
             date = article.xpath('//meta[@name="date"]/@content').get()
-            text = article.xpath('//p/text()').getall()
 
-        print(f"inside parse_article(), parent_url = {response.url} , article_url = {link} , title = {title}")
+        else:
+            title = None
+            link = None
+            date = None
+
+        print(f"inside parse_article(), parent_url = {response.url} , article_url = {link} , title = {title}, date = {date}")
 
         yield {
             'title': title,
