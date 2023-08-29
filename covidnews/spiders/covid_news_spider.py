@@ -9,10 +9,13 @@ import requests
 
 # Define preferred search keywords
 #search_keywords = ['covid','virus','pandemic','vaccine','corona','vaccination','circuit breaker','SARS-CoV-2']
-search_keywords = ['covid','pandemic','vaccine','corona','vaccination','SARS-CoV-2']
+search_keywords = ['covid','pandemic','vaccine','coronavirus','vaccination','SARS-CoV-2']
 
 # Whether to brute-force search across the entire website hierarchy
 search_entire_website = True
+
+# Whether to skip cdx search
+SKIP_CDX = True
 
 
 class CovidNewsSpider(scrapy.Spider):
@@ -105,36 +108,39 @@ class CovidNewsSpider(scrapy.Spider):
                     # Get identifier
                     identifier = result['identifier']
 
-                    # Get timestamp from CDX API
-                    cdx_url = f'https://web.archive.org/cdx/search/cdx?url={identifier}&output=json'
-                    print(f"cdx_url = {cdx_url}")
-                    MAX_CDX_RETRIES = 3
+                    if not SKIP_CDX:
+                        # Get timestamp from CDX API
+                        cdx_url = f'https://web.archive.org/cdx/search/cdx?url={identifier}&output=json'
+                        print(f"cdx_url = {cdx_url}")
+                        MAX_CDX_RETRIES = 3
 
-                    try:
-                        # Request CDX API
-                        r = requests.get(cdx_url)
+                        try:
+                            # Request CDX API
+                            r = requests.get(cdx_url)
 
-                        # Parse response
-                        results = r.json()
+                            # Parse response
+                            results = r.json()
 
-                    except ConnectionError as e:
-                        print(f"CDX connection error: {e}")
+                        except ConnectionError as e:
+                            print(f"CDX connection error: {e}")
 
-                        if retries < MAX_CDX_RETRIES:
-                            time.sleep(1)
-                            retries += 1
-                            return query_cdx(cdx_url, retries)
+                            if retries < MAX_CDX_RETRIES:
+                                time.sleep(1)
+                                retries += 1
+                                return query_cdx(cdx_url, retries)
 
-                        raise # reraise error if max retries reached
+                            else:
+                                # Max retries reached, skip this identifier
+                                print(f"Skipping {identifier} after max retries")
+                                continue
+                                #raise # reraise error if max retries reached
 
-                    timestamp = None
-
-                    try:
-                        # Extract timestamp
-                        timestamp = results[-1][1]
-                        print(f"timestamp = {timestamp}")
-                    except IndexError:
-                        print("No results from CDX")
+                        try:
+                            # Extract timestamp
+                            timestamp = results[-1][1]
+                            print(f"timestamp = {timestamp}")
+                        except IndexError:
+                            print("No results from CDX")
 
                     # Lookup item metadata
                     try:
@@ -145,6 +151,8 @@ class CovidNewsSpider(scrapy.Spider):
 
                     except Exception as e:
                         print("Error retrieving metadata: ", e)
+
+                    timestamp = None
 
                     if not identifier:
                         print(f"url missing")
@@ -190,10 +198,13 @@ class CovidNewsSpider(scrapy.Spider):
                 #more_links = response.css('div.queryly_item_row a::attr(href), a:contains("More")::attr(href), a.stretched-link::attr(href)').getall()
                 more_links = response.css('div.queryly_item_row > a::attr(href)').getall()
 
+        elif 'archive.org' in response.url:
+            more_links = response.css('').getall()  # Replace with the correct CSS selector
+
         else:
             more_links = None
 
-        #print("more_links = ", more_links)
+        print("more_links = ", more_links)
         return more_links
 
     def parse(self, response):
@@ -329,10 +340,8 @@ class CovidNewsSpider(scrapy.Spider):
 
         elif 'archive.org' in response.url:
             print("we are here, nice !!!")
-            title = response.css('meta[property="og:title"]::attr(content)').get() or \
-                    article.css('meta[property="og:title"]::attr(content)').get()
-            link = response.css('a.format-summary:contains("FULL TEXT")::attr(href)').get() or \
-                   article.css('a.format-summary:contains("FULL TEXT")::attr(href)').get()
+            title = article.css('meta[property="og:title"]::attr(content)').get()
+            link = article.css('a.format-summary:contains("FULL TEXT")::attr(href)').get()
             date = article.xpath('//meta[@name="date"]/@content').get()
 
         else:
