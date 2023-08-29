@@ -8,7 +8,8 @@ import internetarchive
 import requests
 
 # Define preferred search keywords
-search_keywords = ['covid','virus','pandemic','vaccine','corona','vaccination','circuit breaker','SARS-CoV-2']
+#search_keywords = ['covid','virus','pandemic','vaccine','corona','vaccination','circuit breaker','SARS-CoV-2']
+search_keywords = ['covid','pandemic','vaccine','corona','vaccination','SARS-CoV-2']
 
 # Whether to brute-force search across the entire website hierarchy
 search_entire_website = True
@@ -57,7 +58,7 @@ class CovidNewsSpider(scrapy.Spider):
             queries.append(f"language:{lang}")
 
         # Combine queries
-        full_query = " AND ".join(queries) + " AND " + " OR ".join(keyword_queries)
+        full_query = " AND ".join(queries) + " AND (" + " OR ".join(keyword_queries) + ")"
 
         # For ChunkedEncodingError (connection broken issue)
         MAX_RETRIES = 3
@@ -69,6 +70,7 @@ class CovidNewsSpider(scrapy.Spider):
                 print(f"full_query for archive.org = {full_query}")
                 search = internetarchive.search_items(full_query)
                 print(f"archive.org search API returns {len(search)} pieces of search results !!")
+
                 return search
 
             except internetarchive.exceptions.RequestError as e:
@@ -81,7 +83,7 @@ class CovidNewsSpider(scrapy.Spider):
 
     def start_requests(self):
         for url in self.start_urls:
-            if "web.archive.org" in url:
+            if "archive.org" in url:
                 countries = [] #['SG']
                 creators = [] #['CNN', 'CNA']
                 types = ['texts']
@@ -89,8 +91,16 @@ class CovidNewsSpider(scrapy.Spider):
 
                 search = self.search_archives(search_keywords, countries, creators, types, languages)
 
+                identifiers = [result['identifier'] for result in search]
+                unique_identifiers = set(identifiers)
+                print(f"len(unique_identifiers) = {len(unique_identifiers)}")
+
+                search_counter = 0
+
                 # Process results
                 for result in search:
+                    print(f"search_counter = {search_counter}")
+                    search_counter = search_counter + 1
 
                     # Get identifier
                     identifier = result['identifier']
@@ -154,7 +164,9 @@ class CovidNewsSpider(scrapy.Spider):
                             # Construct url from 'identifier-access' field
                             identifier_url = metadata.get("identifier-access")
                             print(f"identifier_url = {identifier_url}")
-                            yield scrapy.Request(identifier_url, callback=self.parse, meta={'retry_times': RETRY_TIMES})
+
+                            if identifier_url:
+                                yield scrapy.Request(identifier_url, callback=self.parse, meta={'retry_times': RETRY_TIMES})
 
             else:
                 yield SplashRequest(
@@ -187,6 +199,7 @@ class CovidNewsSpider(scrapy.Spider):
     def parse(self, response):
         articles = None
         link = response.url
+        print("inside parse(), response.url = ", response.url)
 
         if link:
             if "javascript" in link or "mailto" in link or "play.google.com" in link or "apps.apple.com" in link or \
@@ -205,9 +218,10 @@ class CovidNewsSpider(scrapy.Spider):
             articles = []
 
         for article in articles:
-            link = article.css('h1.entry-title a::attr(href)').get() or \
-                    article.css('h6.list-object__heading a::attr(href)').get() or \
-                    article.css('div.quick-link::attr(data-link_absolute)').get()
+            for parsed_article in self.parse_article(article, response):
+                title = parsed_article['title']
+                link = parsed_article['link']
+                body = parsed_article['body']
 
             if link:
                 if "javascript" in link or "mailto" in link or "play.google.com" in link or "apps.apple.com" in link or \
@@ -217,16 +231,6 @@ class CovidNewsSpider(scrapy.Spider):
                     continue
 
             print("article = ", article)
-            title = "HelloWorld!!!"
-            for parsed_article in self.parse_article(article, response):
-                title = parsed_article['title']
-
-            body = article.css('div.article p::text').getall() or \
-                   article.css('div.text-long').getall() or \
-                   article.css('main #maincontent div.container pre::text').getall()
-            body = '\n'.join(body)
-
-            print(f"title = {title} , body = {body}")
 
             if (title != None and any(keyword in title.lower() for keyword in search_keywords)) or (body != None and any(keyword in body.lower() for keyword in search_keywords)):
                 # Create a unique filename for each URL by removing the 'http://', replacing '/' with '_', and adding '.html'
@@ -276,7 +280,7 @@ class CovidNewsSpider(scrapy.Spider):
         print(f"Found {len(articles)} articles")
 
     def parse_articles(self, response):
-        #print("inside parse_articles(), response.url = ", response.url)
+        print("inside parse_articles(), response.url = ", response.url)
         if 'channelnewsasia' in response.url:
             # Extract articles from CNA
             return response.css('div.list-object')
@@ -300,6 +304,11 @@ class CovidNewsSpider(scrapy.Spider):
         title = "testing123"
         link = "testing123"
         date = "testing123"
+
+        body = article.css('div.article p::text').getall() or \
+               article.css('div.text-long').getall() or \
+               article.css('main #maincontent div.container pre::text').getall()
+        body = '\n'.join(body)
 
         if 'channelnewsasia' in response.url:
             title = article.css('title::text').get() or \
@@ -331,12 +340,13 @@ class CovidNewsSpider(scrapy.Spider):
             link = None
             date = None
 
-        print(f"inside parse_article(), parent_url = {response.url} , article_url = {link} , title = {title}, date = {date}")
+        print(f"inside parse_article(), parent_url = {response.url} , article_url = {link} , title = {title}, date = {date} , body = {body}")
 
         yield {
             'title': title,
             'link': link,
             'date': date,
+            'body': body,
             'excerpt': article.css('p::text').get(),
             'source': self.get_source(response)
         }
