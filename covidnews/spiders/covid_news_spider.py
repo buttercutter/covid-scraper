@@ -185,7 +185,7 @@ class CovidNewsSpider(scrapy.Spider):
                     )
 
     def get_next_page(self, response):
-        print("response.url = ", response.url)
+        print("inside get_next_page(), response.url = ", response.url)
 
         if 'channelnewsasia' in response.url:
             more_links = response.css('a::attr(href)').getall()  # Replace with the correct CSS selector
@@ -199,7 +199,7 @@ class CovidNewsSpider(scrapy.Spider):
                 more_links = response.css('div.queryly_item_row > a::attr(href)').getall()
 
         elif 'archive.org' in response.url:
-            more_links = response.css('').getall()  # Replace with the correct CSS selector
+            more_links = response.css('a.format-summary:contains("FULL TEXT")::attr(href)').getall()
 
         else:
             more_links = None
@@ -212,6 +212,10 @@ class CovidNewsSpider(scrapy.Spider):
         link = response.url
         print("inside parse(), response.url = ", response.url)
 
+        INTERNETARCHIVE_FULL_TEXT = \
+            'https://archive.org/stream/' in response.url or \
+            'https://archive.org/compress/' in response.url
+
         if link:
             if "javascript" in link or "mailto" in link or "play.google.com" in link or "apps.apple.com" in link or \
                 "www.channelnewsasia.com/watch" in link or "cnaluxury.channelnewsasia.com" in link or \
@@ -220,7 +224,8 @@ class CovidNewsSpider(scrapy.Spider):
                 print(f"skipped : {link}")
 
             else:
-                articles = self.parse_articles(response)
+                if not INTERNETARCHIVE_FULL_TEXT:
+                    articles = self.parse_articles(response)
                 print("articles = ", articles)
 
         if articles is not None:
@@ -253,8 +258,12 @@ class CovidNewsSpider(scrapy.Spider):
                 with open(filename, 'wb') as f:
                     f.write(response.body)
 
-        # Get the next page URLs and yield new requests
-        next_pages = self.get_next_page(response)
+        next_pages = None
+
+        if not INTERNETARCHIVE_FULL_TEXT:
+            # Get the next page URLs and yield new requests
+            next_pages = self.get_next_page(response)
+
         if next_pages is not None:
             next_pages = list(next_pages)
         else:
@@ -299,8 +308,14 @@ class CovidNewsSpider(scrapy.Spider):
             # Extract articles from ST
             return response.css('div.container > div.grid.cards > div.card')
         elif 'archive.org' in response.url:
-            # Extract article (only the FULL_TEXT download page) from archive.org
-            return response.css('a.format-summary.download-pill:contains("FULL TEXT")::attr(href)')
+            if 'https://archive.org/details/' in response.url:
+                # Extract article (only the FULL_TEXT download page) from the summary page
+                return response.css('a.format-summary.download-pill:contains("FULL TEXT")::attr(href)')
+            else:
+                print("Already downloaded and extracted the FULL_TEXT archive.org article")
+                # (be aware of compressed zip file format containing multiple djvu.txt.html webpage files,
+                # OR Microsoft Word document)
+                return response.css('*')
 
 
     def get_source(self, response):
@@ -318,7 +333,7 @@ class CovidNewsSpider(scrapy.Spider):
 
         body = article.css('div.article p::text').getall() or \
                article.css('div.text-long').getall() or \
-               article.css('main #maincontent div.container pre::text').getall()
+               response.css('main#maincontent > div.container.container-ia > pre::text').getall()
         body = '\n'.join(body)
 
         if 'channelnewsasia' in response.url:
@@ -340,8 +355,8 @@ class CovidNewsSpider(scrapy.Spider):
 
         elif 'archive.org' in response.url:
             print("we are here, nice !!!")
-            title = article.css('meta[property="og:title"]::attr(content)').get()
-            link = article.css('a.format-summary:contains("FULL TEXT")::attr(href)').get()
+            title = article.css('title::text').get()
+            link = response.css('a.format-summary.download-pill:contains("FULL TEXT")::attr(href)').get()
             date = article.xpath('//meta[@name="date"]/@content').get()
 
         else:
@@ -349,7 +364,7 @@ class CovidNewsSpider(scrapy.Spider):
             link = None
             date = None
 
-        print(f"inside parse_article(), parent_url = {response.url} , article_url = {link} , title = {title}, date = {date} , body = {body}")
+        print(f"inside parse_article(), parent_url = {response.url} , article_url = {link} , title = {title}, date = {date}")
 
         yield {
             'title': title,
