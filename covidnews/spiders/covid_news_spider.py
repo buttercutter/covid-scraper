@@ -23,10 +23,10 @@ class CovidNewsSpider(scrapy.Spider):
 
     start_urls = [
         #'https://web.archive.org/'
-        'https://www.straitstimes.com/'
+        #'https://www.straitstimes.com/'
         #'https://www.channelnewsasia.com/'
         #'https://www.channelnewsasia.com/search?q=covid'  # [scrapy.downloadermiddlewares.robotstxt] DEBUG: Forbidden by robots.txt:
-        #'https://www.straitstimes.com/search?searchkey=covid'  # Forbidden by https://www.straitstimes.com/robots.txt
+        'https://www.straitstimes.com/search?searchkey=covid'  # Forbidden by https://www.straitstimes.com/robots.txt
     ]
 
     custom_settings = {
@@ -178,11 +178,41 @@ class CovidNewsSpider(scrapy.Spider):
                                 yield scrapy.Request(identifier_url, callback=self.parse, meta={'retry_times': RETRY_TIMES})
 
             else:
+                js_script = """
+                    function main(splash)
+
+                      -- Go to page
+                      splash:go(splash.args.url)
+
+                      -- Wait for 10 seconds
+                      splash:wait(10.0)
+
+                      -- Print url
+                      print("splash:get_url() = ", splash:get_url())
+
+                      -- Select button
+                      local close_btn = splash:select('#pclose-btn')
+
+                      -- Print details
+                      print("close_btn = ", close_btn:tostring())
+
+                      -- Click button
+                      close_btn:mouse_click()
+
+                      -- Wait 2 seconds
+                      splash:wait(2.0)
+
+                      -- Return HTML after waiting
+                      return splash:html()
+
+                    end
+                    """
+
                 yield SplashRequest(
                         url,
                         callback=self.parse,
-                        endpoint='render.html',
-                        args={'wait': 10, 'resource_timeout': 10},
+                        endpoint='execute',
+                        args={'lua_source': js_script, 'adblock': True, 'wait': 10, 'resource_timeout': 10},
                         headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
                     )
 
