@@ -275,7 +275,7 @@ class CovidNewsSpider(scrapy.Spider):
             if link:
                 if "javascript" in link or "mailto" in link or "play.google.com" in link or "apps.apple.com" in link or \
                     "www.channelnewsasia.com/watch" in link or "cnaluxury.channelnewsasia.com" in link or \
-                    "www.channelnewsasia.com/about-us" in link:
+                    "www.channelnewsasia.com/about-us" in link or "whatsapp://" in link:
                     # Skip links
                     continue
 
@@ -369,11 +369,6 @@ class CovidNewsSpider(scrapy.Spider):
         link = "testing123"
         date = "testing123"
 
-        body = article.css('div.article p::text').getall() or \
-               article.css('div.text-long').getall() or \
-               response.css('main#maincontent > div.container.container-ia > pre::text').getall()
-        body = '\n'.join(body)
-
         if 'channelnewsasia' in response.url:
             title = article.css('title::text').get() or \
                     article.css('h1.entry-title::text').get() or \
@@ -385,24 +380,36 @@ class CovidNewsSpider(scrapy.Spider):
                     article.css('h6.list-object__heading a::attr(href)').get() or \
                     article.css('div.quick-link::attr(data-link_absolute)').get()
             date = article.css('time.entry-date::text').get() or article.css('div.list-object__datetime-duration span::text').get()
+            body = article.css('div.article p::text').getall() or \
+                   article.css('div.text-long').getall() or \
+                   response.css('main#maincontent > div.container.container-ia > pre::text').getall()
+            body = '\n'.join(body)
 
         elif 'straitstimes' in response.url:
             title = article.css('h5.card-title a::text').get()
             link = article.css('a::attr(href)').get()
             date = article.css('time::text').get()
+            body = article.xpath('//p[not(@*)]/text()').getall()
+            #body = [p.css('::text').get() for p in article.css('p')]
+            body = '\n'.join(body)
 
         elif 'archive.org' in response.url:
             print("we are here, nice !!!")
             title = article.css('title::text').get()
             link = response.css('a.format-summary.download-pill:contains("FULL TEXT")::attr(href)').get()
             date = article.xpath('//meta[@name="date"]/@content').get()
+            body = article.css('div.article p::text').getall() or \
+                   article.css('div.text-long').getall() or \
+                   response.css('main#maincontent > div.container.container-ia > pre::text').getall()
+            body = '\n'.join(body)
 
         else:
             title = None
             link = None
             date = None
+            body = None
 
-        print(f"inside parse_article(), parent_url = {response.url} , article_url = {link} , title = {title}, date = {date}")
+        print(f"inside parse_article(), parent_url = {response.url} , article_url = {link} , title = {title}, date = {date}, body = {body}")
 
         yield {
             'title': title,
