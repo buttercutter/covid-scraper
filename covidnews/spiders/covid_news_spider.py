@@ -12,7 +12,7 @@ import requests
 search_keywords = ['covid','pandemic','vaccine','coronavirus','vaccination','SARS-CoV-2']
 
 # Whether to brute-force search across the entire website hierarchy
-SEARCH_ENTIRE_WEBSITE = 0
+SEARCH_ENTIRE_WEBSITE = 1
 
 # Whether to skip cdx search
 SKIP_CDX = True
@@ -23,10 +23,10 @@ class CovidNewsSpider(scrapy.Spider):
 
     start_urls = [
         #'https://web.archive.org/'
-        #'https://www.straitstimes.com/'
+        'https://www.straitstimes.com/'
         #'https://www.channelnewsasia.com/'
         #'https://www.channelnewsasia.com/search?q=covid'  # [scrapy.downloadermiddlewares.robotstxt] DEBUG: Forbidden by robots.txt:
-        'https://www.straitstimes.com/search?searchkey=covid'  # Forbidden by https://www.straitstimes.com/robots.txt
+        #'https://www.straitstimes.com/search?searchkey=covid'  # Forbidden by https://www.straitstimes.com/robots.txt
     ]
 
     custom_settings = {
@@ -231,15 +231,6 @@ class CovidNewsSpider(scrapy.Spider):
                 #more_links = response.css('div.queryly_item_row > a::attr(href)').getall()
                 more_links = response.css('a:contains("Next Page")::attr(href)').get()
 
-                if more_links is not None:
-                    #yield response.follow(next_page, callback=self.parse)
-                    yield SplashRequest(
-                        more_links,
-                        self.parse,
-                        args={'wait': 0.5},
-                        headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
-                    )
-
         elif 'archive.org' in response.url:
             more_links = response.css('a.format-summary:contains("FULL TEXT")::attr(href)').getall()
 
@@ -351,7 +342,8 @@ class CovidNewsSpider(scrapy.Spider):
             # Extract articles from ST
             #return response.css('div.container > div.grid.cards > div.card')
             print("parse_articles() for straitstimes")
-            return response.css('div.queryly_item_row')
+            return response.css('div.card-body')
+            #return response.css('div.queryly_item_row')
 
         elif 'archive.org' in response.url:
             if 'https://archive.org/details/' in response.url:
@@ -395,7 +387,7 @@ class CovidNewsSpider(scrapy.Spider):
             date = article.css('time.entry-date::text').get() or article.css('div.list-object__datetime-duration span::text').get()
 
         elif 'straitstimes' in response.url:
-            title = article.css('h3::text').get()
+            title = article.css('h5.card-title a::text').get()
             link = article.css('a::attr(href)').get()
             date = article.css('time::text').get()
 
