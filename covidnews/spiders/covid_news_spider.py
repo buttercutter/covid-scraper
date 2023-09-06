@@ -250,8 +250,9 @@ class CovidNewsSpider(scrapy.Spider):
             'https://archive.org/compress/' in response.url
 
         if link:
-            if "javascript" in link or "mailto" in link or "play.google.com" in link or "apps.apple.com" in link or \
-                "www.channelnewsasia.com/watch" in link or "cnaluxury.channelnewsasia.com" in link or \
+            if "javascript" in link or "mailto" in link or "whatsapp://" in link or \
+                "play.google.com" in link or "apps.apple.com" in link or \
+                 "www.channelnewsasia.com/watch" in link or "cnaluxury.channelnewsasia.com" in link or \
                 "www.channelnewsasia.com/about-us" in link:
                 # Skip links
                 print(f"skipped : {link}")
@@ -292,7 +293,8 @@ class CovidNewsSpider(scrapy.Spider):
                 link = next_page_url
                 #print(f"link : {link} is of type : {type(link)}")
 
-                if "javascript" in link or "mailto" in link or "play.google.com" in link or "apps.apple.com" in link or \
+                if "javascript" in link or "mailto" in link or "whatsapp://" in link or \
+                    "play.google.com" in link or "apps.apple.com" in link or \
                      "www.channelnewsasia.com/watch" in link or "cnaluxury.channelnewsasia.com" in link or \
                     "www.channelnewsasia.com/about-us" in link:
                     # Skip links
@@ -370,17 +372,30 @@ class CovidNewsSpider(scrapy.Spider):
 
             link = response.css('a.format-summary.download-pill:contains("FULL TEXT")::attr(href)').get()
 
-        #print(f"link : {link} is of type : {type(link)}")
+        else:
+            title = None
+            date = None
+            link = None
+
+        print(f"inside parse_article(), article_url = {link} , title = {title}, date = {date}")
 
         article_url = link
 
-        yield SplashRequest(
-            url=response.urljoin(article_url),
-            callback=self.get_article_content,
-            meta={'title': title, 'date': date},  # Pass additional data here
-            args={'wait': 0.5},
-            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,      like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
-        )
+        if not link or "javascript" in link or "mailto" in link or "whatsapp://" in link or \
+            "play.google.com" in link or "apps.apple.com" in link or \
+             "www.channelnewsasia.com/watch" in link or "cnaluxury.channelnewsasia.com" in link or \
+            "www.channelnewsasia.com/about-us" in link:
+            # skipping urls
+            yield None
+
+        else:
+            yield SplashRequest(
+                url=response.urljoin(article_url),
+                callback=self.get_article_content,
+                meta={'title': title, 'date': date},  # Pass additional data here
+                args={'wait': 0.5},
+                headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,      like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
+            )
 
 
     def get_article_content(self, response):
@@ -412,7 +427,14 @@ class CovidNewsSpider(scrapy.Spider):
 
         link = response.url
 
-        print(f"inside parse_article(), article_url = {link} , title = {title}, date = {date}, body = {body}")
+        print(f"inside get_article_content(), article_url = {link} , title = {title}, date = {date}, body = {body}")
+
+        if not link or "javascript" in link or "mailto" in link or "whatsapp://" in link or \
+            "play.google.com" in link or "apps.apple.com" in link or \
+             "www.channelnewsasia.com/watch" in link or "cnaluxury.channelnewsasia.com" in link or \
+            "www.channelnewsasia.com/about-us" in link:
+            # skipping urls
+            yield None
 
         self.write_to_local_data(link, title, body, response)
 
