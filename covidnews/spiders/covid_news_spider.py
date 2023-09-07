@@ -17,13 +17,20 @@ SEARCH_ENTIRE_WEBSITE = 1
 # Whether to skip cdx search
 SKIP_CDX = True
 
+# Excludes search URL results that renders the following files extensions
+excluded_file_extensions = [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".pdf", ".xls", ".mp3", ".mp4", ".mov",
+                            ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx"]
+
+# Only parses URLs within these domains
+allowed_domain_names = ["archive.org", "straitstimes.com", "channelnewsasia.com"]
+
 
 class CovidNewsSpider(scrapy.Spider):
     name = 'covid_news_spider'
 
     start_urls = [
-        #'https://web.archive.org/'
-        #'https://www.straitstimes.com/'
+        #'https://web.archive.org/',
+        'https://www.straitstimes.com/',
         'https://www.channelnewsasia.com/'
         #'https://www.channelnewsasia.com/search?q=covid'  # [scrapy.downloadermiddlewares.robotstxt] DEBUG: Forbidden by robots.txt:
         #'https://www.straitstimes.com/search?searchkey=covid'  # Forbidden by https://www.straitstimes.com/robots.txt
@@ -211,8 +218,9 @@ class CovidNewsSpider(scrapy.Spider):
                 yield SplashRequest(
                         url,
                         callback=self.parse,
-                        endpoint='execute',
+                        endpoint='execute',  # for closing advertising overlay page to get to desired page
                         args={'lua_source': js_script, 'adblock': True, 'wait': 10, 'resource_timeout': 10},
+                        splash_headers={'X-Splash-Render-HTML': 1},  # for non-pure html with javascript
                         headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
                     )
 
@@ -253,7 +261,9 @@ class CovidNewsSpider(scrapy.Spider):
             if "javascript" in link or "mailto" in link or "whatsapp://" in link or \
                 "play.google.com" in link or "apps.apple.com" in link or \
                  "www.channelnewsasia.com/watch" in link or "cnaluxury.channelnewsasia.com" in link or \
-                "www.channelnewsasia.com/about-us" in link:
+                "www.channelnewsasia.com/about-us" in link or \
+                any(file_extension in link for file_extension in excluded_file_extensions) or \
+                not any(domain_name in link for domain_name in allowed_domain_names):
                 # Skip links
                 print(f"skipped : {link}")
 
@@ -296,7 +306,9 @@ class CovidNewsSpider(scrapy.Spider):
                 if "javascript" in link or "mailto" in link or "whatsapp://" in link or \
                     "play.google.com" in link or "apps.apple.com" in link or \
                      "www.channelnewsasia.com/watch" in link or "cnaluxury.channelnewsasia.com" in link or \
-                    "www.channelnewsasia.com/about-us" in link:
+                    "www.channelnewsasia.com/about-us" in link or \
+                    any(file_extension in link for file_extension in excluded_file_extensions) or \
+                    not any(domain_name in link for domain_name in allowed_domain_names):
                     # Skip links
                     continue
 
@@ -304,8 +316,9 @@ class CovidNewsSpider(scrapy.Spider):
 
                 yield SplashRequest(
                     #response.urljoin(next_page),
-                    next_page_url,
-                    self.parse,
+                    url=next_page_url,
+                    callback=self.parse,
+                    endpoint='render.html',  # for non-pure html with javascript
                     args={'wait': 0.5},
                     headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
                 )
@@ -377,21 +390,27 @@ class CovidNewsSpider(scrapy.Spider):
             date = None
             link = None
 
-        print(f"inside parse_article(), article_url = {link} , title = {title}, date = {date}")
-
-        article_url = link
-
         if not link or "javascript" in link or "mailto" in link or "whatsapp://" in link or \
             "play.google.com" in link or "apps.apple.com" in link or \
              "www.channelnewsasia.com/watch" in link or "cnaluxury.channelnewsasia.com" in link or \
-            "www.channelnewsasia.com/about-us" in link:
+            "www.channelnewsasia.com/about-us" in link or \
+            any(file_extension in link for file_extension in excluded_file_extensions) or \
+            not any(domain_name in link for domain_name in allowed_domain_names):
             # skipping urls
             yield None
 
         else:
+            print(f"inside parse_article(), article_url = {link} , title = {title}, date = {date}")
+
+            if link.startswith("http"):
+                article_url = link
+            else:
+                article_url = response.urljoin(link)
+
             yield SplashRequest(
-                url=response.urljoin(article_url),
+                url=article_url,
                 callback=self.get_article_content,
+                endpoint='render.html',  # for non-pure html with javascript
                 meta={'title': title, 'date': date},  # Pass additional data here
                 args={'wait': 0.5},
                 headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,      like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
@@ -427,14 +446,16 @@ class CovidNewsSpider(scrapy.Spider):
 
         link = response.url
 
-        print(f"inside get_article_content(), article_url = {link} , title = {title}, date = {date}, body = {body}")
-
         if not link or "javascript" in link or "mailto" in link or "whatsapp://" in link or \
             "play.google.com" in link or "apps.apple.com" in link or \
              "www.channelnewsasia.com/watch" in link or "cnaluxury.channelnewsasia.com" in link or \
-            "www.channelnewsasia.com/about-us" in link:
+            "www.channelnewsasia.com/about-us" in link or \
+            any(file_extension in link for file_extension in excluded_file_extensions) or \
+            not any(domain_name in link for domain_name in allowed_domain_names):
             # skipping urls
             yield None
+
+        print(f"inside get_article_content(), article_url = {link} , title = {title}, date = {date}, body = {body}")
 
         self.write_to_local_data(link, title, body, response)
 
