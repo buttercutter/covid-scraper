@@ -2,6 +2,9 @@
 import scrapy
 from scrapy_splash import SplashRequest
 from urllib.parse import urljoin
+import re
+from urllib.parse import urlparse, urlunparse
+
 
 # For http://web.archive.org/
 import internetarchive
@@ -227,6 +230,19 @@ class CovidNewsSpider(scrapy.Spider):
     def get_next_pages(self, response):
         print("inside get_next_pages(), response.url = ", response.url)
 
+        link = response.url
+
+        if not link or "javascript" in link or "mailto" in link or "whatsapp://" in link or \
+            "play.google.com" in link or "apps.apple.com" in link or \
+             "www.channelnewsasia.com/watch" in link or "cnaluxury.channelnewsasia.com" in link or \
+            "www.channelnewsasia.com/video" in link or "www.straitstimes.com/video" in link or \
+            "www.channelnewsasia.com/about-us" in link or \
+            any(file_extension in link for file_extension in excluded_file_extensions) or \
+            not any(domain_name in link for domain_name in allowed_domain_names):
+            # skipping urls
+            # This is a workaround to avoid scraping url links inside irrelevant pages redirected from other urls
+            return None
+
         if 'channelnewsasia' in response.url:
             more_links = response.css('a::attr(href)').getall()  # Replace with the correct CSS selector
 
@@ -248,6 +264,23 @@ class CovidNewsSpider(scrapy.Spider):
         print("more_links = ", more_links)
         return more_links
 
+
+    def fix_url(self, url, default_url='https://www.example.com/'):
+        # Remove repeated protocols
+        url = re.sub(r"https?://https?://", "https://", url)
+        url = re.sub(r"https?://\(https?//?", "https://", url)
+        url = re.sub(r"https?://ttps?//?", "https://", url)
+
+        # Fix common typo in domain name
+        url = re.sub(r"https://ww\.", "https://www.", url)
+
+        if not url.startswith("http"):
+            url = urljoin(default_url, url)
+
+        # If the URL is fine, return it as is
+        return url
+
+
     def parse(self, response):
         articles = None
         link = response.url
@@ -261,11 +294,12 @@ class CovidNewsSpider(scrapy.Spider):
             if "javascript" in link or "mailto" in link or "whatsapp://" in link or \
                 "play.google.com" in link or "apps.apple.com" in link or \
                  "www.channelnewsasia.com/watch" in link or "cnaluxury.channelnewsasia.com" in link or \
+                "www.channelnewsasia.com/video" in link or "www.straitstimes.com/video" in link or \
                 "www.channelnewsasia.com/about-us" in link or \
                 any(file_extension in link for file_extension in excluded_file_extensions) or \
                 not any(domain_name in link for domain_name in allowed_domain_names):
                 # Skip links
-                print(f"skipped : {link}")
+                print(f"skipped {link} inside parse()")
 
             else:
                 if not INTERNETARCHIVE_FULL_TEXT:
@@ -293,25 +327,31 @@ class CovidNewsSpider(scrapy.Spider):
 
         next_pages_url = []
         for link in next_pages:
-            if link.startswith("http"):
-                next_pages_url.append(link)
-            else:
-                next_pages_url.append(urljoin(response.url, link))
+            # Fix wrong links that are already wrong at the source
+            # For example:
+            # https://https://www.domain.com/subdirectory
+            # https://ww.domain.com/subdirectory
+            # https://https://subdirectory
+            print(f"Before fix_url(), link : {link} is of type : {type(link)}")
+            link = self.fix_url(link, response.url)
+            print(f"After fix_url(), link : {link} is of type : {type(link)}")
+            next_pages_url.append(link)
 
         for next_page_url in next_pages_url:
             if next_page_url:
                 link = next_page_url
-                #print(f"link : {link} is of type : {type(link)}")
 
                 if "javascript" in link or "mailto" in link or "whatsapp://" in link or \
                     "play.google.com" in link or "apps.apple.com" in link or \
                      "www.channelnewsasia.com/watch" in link or "cnaluxury.channelnewsasia.com" in link or \
+                    "www.channelnewsasia.com/video" in link or "www.straitstimes.com/video" in link or \
                     "www.channelnewsasia.com/about-us" in link or \
                     any(file_extension in link for file_extension in excluded_file_extensions) or \
                     not any(domain_name in link for domain_name in allowed_domain_names):
                     # Skip links
                     continue
 
+                print("response.url = ", response.url)
                 print("next_page_url = ", next_page_url)
 
                 yield SplashRequest(
@@ -390,22 +430,22 @@ class CovidNewsSpider(scrapy.Spider):
             date = None
             link = None
 
+        link = self.fix_url(link, response.url)
+
         if not link or "javascript" in link or "mailto" in link or "whatsapp://" in link or \
             "play.google.com" in link or "apps.apple.com" in link or \
              "www.channelnewsasia.com/watch" in link or "cnaluxury.channelnewsasia.com" in link or \
+            "www.channelnewsasia.com/video" in link or "www.straitstimes.com/video" in link or \
             "www.channelnewsasia.com/about-us" in link or \
             any(file_extension in link for file_extension in excluded_file_extensions) or \
             not any(domain_name in link for domain_name in allowed_domain_names):
             # skipping urls
+            print(f"skipped {link} inside parse_article()")
             yield None
 
         else:
             print(f"inside parse_article(), article_url = {link} , title = {title}, date = {date}")
-
-            if link.startswith("http"):
-                article_url = link
-            else:
-                article_url = response.urljoin(link)
+            article_url = link
 
             yield SplashRequest(
                 url=article_url,
@@ -449,24 +489,27 @@ class CovidNewsSpider(scrapy.Spider):
         if not link or "javascript" in link or "mailto" in link or "whatsapp://" in link or \
             "play.google.com" in link or "apps.apple.com" in link or \
              "www.channelnewsasia.com/watch" in link or "cnaluxury.channelnewsasia.com" in link or \
+            "www.channelnewsasia.com/video" in link or "www.straitstimes.com/video" in link or \
             "www.channelnewsasia.com/about-us" in link or \
             any(file_extension in link for file_extension in excluded_file_extensions) or \
             not any(domain_name in link for domain_name in allowed_domain_names):
             # skipping urls
+            print(f"skipped {link} inside get_article_content()")
             yield None
 
-        print(f"inside get_article_content(), article_url = {link} , title = {title}, date = {date}, body = {body}")
+        else:
+            print(f"inside get_article_content(), article_url = {link} , title = {title}, date = {date}, body = {body}")
 
-        self.write_to_local_data(link, title, body, response)
+            self.write_to_local_data(link, title, body, response)
 
-        yield {
-            'title': title,
-            'link': link,
-            'date': date,
-            'body': body,
-            #'excerpt': article.css('p::text').get(),
-            'source': self.get_source(response)
-        }
+            yield {
+                'title': title,
+                'link': link,
+                'date': date,
+                'body': body,
+                #'excerpt': article.css('p::text').get(),
+                'source': self.get_source(response)
+            }
 
 
     def write_to_local_data(self, link, title, body, response):
