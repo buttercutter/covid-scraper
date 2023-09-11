@@ -240,6 +240,7 @@ class CovidNewsSpider(scrapy.Spider):
              "www.channelnewsasia.com/watch" in link or "cnaluxury.channelnewsasia.com" in link or \
             "www.channelnewsasia.com/video" in link or "www.straitstimes.com/video" in link or \
             "www.channelnewsasia.com/listen" in link or \
+            "www.straitstimes.com/author" in link or \
             "www.channelnewsasia.com/about-us" in link or \
             any(file_extension in link for file_extension in excluded_file_extensions) or \
             not any(domain_name in link for domain_name in allowed_domain_names):
@@ -421,7 +422,8 @@ class CovidNewsSpider(scrapy.Spider):
 
         elif 'straitstimes' in response.url:
             title = article.css('h5.card-title a::text').get()
-            date = article.css('time::text').get()
+            date = article.css('time::text').get() or \
+                    article.css('time::attr(datetime)').get()
 
             link = article.css('a::attr(href)').get()
 
@@ -447,6 +449,7 @@ class CovidNewsSpider(scrapy.Spider):
              "www.channelnewsasia.com/watch" in link or "cnaluxury.channelnewsasia.com" in link or \
             "www.channelnewsasia.com/video" in link or "www.straitstimes.com/video" in link or \
             "www.channelnewsasia.com/listen" in link or \
+            "www.straitstimes.com/author" in link or \
             "www.channelnewsasia.com/about-us" in link or \
             any(file_extension in link for file_extension in excluded_file_extensions) or \
             not any(domain_name in link for domain_name in allowed_domain_names):
@@ -473,19 +476,24 @@ class CovidNewsSpider(scrapy.Spider):
 
         # Access the additional data here
         title = response.meta['title']
-        date = response.meta['date'] or \
-                response.css('.group-story-changedate .story-changeddate::text').get() or \
-                response.css('.group-story-postdate .story-postdate::text').get() or \
-                response.css('time::attr(datetime)').get()
-
+        date = response.meta['date']
 
         if 'channelnewsasia' in response.url:
             body = response.xpath('//p[not(@*)]//descendant-or-self::node()/text()').getall()
             body = '\n'.join(body)
 
+            if date is None:
+                date = response.css('.article-publish::text').get() or \
+                        response.css('.article-publish span::text').get()
+
         elif 'straitstimes' in response.url:
             body = response.xpath('//p[not(@*)]/text()').getall()
             body = '\n'.join(body)
+
+            if date is None:
+                date = response.css('.group-story-changedate .story-changeddate::text').get() or \
+                        response.css('.group-story-postdate .story-postdate::text').get() or \
+                        response.css('.st-byline time::text').get()
 
         elif 'archive.org' in response.url:
             body = response.css('div.article p::text').getall() or \
@@ -503,6 +511,7 @@ class CovidNewsSpider(scrapy.Spider):
              "www.channelnewsasia.com/watch" in link or "cnaluxury.channelnewsasia.com" in link or \
             "www.channelnewsasia.com/video" in link or "www.straitstimes.com/video" in link or \
             "www.channelnewsasia.com/listen" in link or \
+            "www.straitstimes.com/author" in link or \
             "www.channelnewsasia.com/about-us" in link or \
             any(file_extension in link for file_extension in excluded_file_extensions) or \
             not any(domain_name in link for domain_name in allowed_domain_names):
