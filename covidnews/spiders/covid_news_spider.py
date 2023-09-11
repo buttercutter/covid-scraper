@@ -4,7 +4,7 @@ from scrapy_splash import SplashRequest
 from urllib.parse import urljoin
 import re
 from urllib.parse import urlparse, urlunparse
-
+from dateutil.parser import parse
 
 # For http://web.archive.org/
 import internetarchive
@@ -14,6 +14,9 @@ import requests
 #search_keywords = ['covid','virus','pandemic','vaccine','corona','vaccination','circuit breaker','SARS-CoV-2']
 search_keywords = ['covid','pandemic','vaccine','coronavirus','vaccination','SARS-CoV-2']
 
+# Define preferred search countries scope
+search_countries = ['Singapore']
+
 # Whether to brute-force search across the entire website hierarchy, due to robots.txt restriction
 SEARCH_ENTIRE_WEBSITE = 1
 
@@ -22,7 +25,7 @@ SKIP_CDX = True
 
 # Excludes search URL results that renders the following files extensions
 excluded_file_extensions = [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".pdf", ".xls", ".mp3", ".mp4", ".mov",
-                            ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx"]
+                            ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".zip"]
 
 # Only parses URLs within these domains
 allowed_domain_names = ["archive.org", "straitstimes.com", "channelnewsasia.com"]
@@ -236,6 +239,7 @@ class CovidNewsSpider(scrapy.Spider):
             "play.google.com" in link or "apps.apple.com" in link or \
              "www.channelnewsasia.com/watch" in link or "cnaluxury.channelnewsasia.com" in link or \
             "www.channelnewsasia.com/video" in link or "www.straitstimes.com/video" in link or \
+            "www.channelnewsasia.com/listen" in link or \
             "www.channelnewsasia.com/about-us" in link or \
             any(file_extension in link for file_extension in excluded_file_extensions) or \
             not any(domain_name in link for domain_name in allowed_domain_names):
@@ -295,6 +299,7 @@ class CovidNewsSpider(scrapy.Spider):
                 "play.google.com" in link or "apps.apple.com" in link or \
                  "www.channelnewsasia.com/watch" in link or "cnaluxury.channelnewsasia.com" in link or \
                 "www.channelnewsasia.com/video" in link or "www.straitstimes.com/video" in link or \
+                "www.channelnewsasia.com/listen" in link or \
                 "www.channelnewsasia.com/about-us" in link or \
                 any(file_extension in link for file_extension in excluded_file_extensions) or \
                 not any(domain_name in link for domain_name in allowed_domain_names):
@@ -345,6 +350,7 @@ class CovidNewsSpider(scrapy.Spider):
                     "play.google.com" in link or "apps.apple.com" in link or \
                      "www.channelnewsasia.com/watch" in link or "cnaluxury.channelnewsasia.com" in link or \
                     "www.channelnewsasia.com/video" in link or "www.straitstimes.com/video" in link or \
+                    "www.channelnewsasia.com/listen" in link or \
                     "www.channelnewsasia.com/about-us" in link or \
                     any(file_extension in link for file_extension in excluded_file_extensions) or \
                     not any(domain_name in link for domain_name in allowed_domain_names):
@@ -430,12 +436,17 @@ class CovidNewsSpider(scrapy.Spider):
             date = None
             link = None
 
-        link = self.fix_url(link, response.url)
+        if date:
+            date = date.strip()  # to remove unnecessary whitespace or newlines characters
+
+        if link:
+            link = self.fix_url(link, response.url)
 
         if not link or "javascript" in link or "mailto" in link or "whatsapp://" in link or \
             "play.google.com" in link or "apps.apple.com" in link or \
              "www.channelnewsasia.com/watch" in link or "cnaluxury.channelnewsasia.com" in link or \
             "www.channelnewsasia.com/video" in link or "www.straitstimes.com/video" in link or \
+            "www.channelnewsasia.com/listen" in link or \
             "www.channelnewsasia.com/about-us" in link or \
             any(file_extension in link for file_extension in excluded_file_extensions) or \
             not any(domain_name in link for domain_name in allowed_domain_names):
@@ -460,16 +471,17 @@ class CovidNewsSpider(scrapy.Spider):
     def get_article_content(self, response):
         # retrieves article's detailed title and body properly
 
-        title = response.meta['title']  # Access the additional data here
-        date = response.meta['date']  # Access the additional data here
+        # Access the additional data here
+        title = response.meta['title']
+        date = response.meta['date'] or \
+                response.css('.group-story-changedate .story-changeddate::text').get() or \
+                response.css('.group-story-postdate .story-postdate::text').get() or \
+                response.css('time::attr(datetime)').get()
+
 
         if 'channelnewsasia' in response.url:
             body = response.xpath('//p[not(@*)]//descendant-or-self::node()/text()').getall()
             body = '\n'.join(body)
-            #body = response.css('div.article p::text').getall() or \
-            #       response.css('div.text-long').getall() or \
-            #       response.css('main#maincontent > div.container.container-ia > pre::text').getall()
-            #body = '\n'.join(body)
 
         elif 'straitstimes' in response.url:
             body = response.xpath('//p[not(@*)]/text()').getall()
@@ -490,6 +502,7 @@ class CovidNewsSpider(scrapy.Spider):
             "play.google.com" in link or "apps.apple.com" in link or \
              "www.channelnewsasia.com/watch" in link or "cnaluxury.channelnewsasia.com" in link or \
             "www.channelnewsasia.com/video" in link or "www.straitstimes.com/video" in link or \
+            "www.channelnewsasia.com/listen" in link or \
             "www.channelnewsasia.com/about-us" in link or \
             any(file_extension in link for file_extension in excluded_file_extensions) or \
             not any(domain_name in link for domain_name in allowed_domain_names):
@@ -500,7 +513,7 @@ class CovidNewsSpider(scrapy.Spider):
         else:
             print(f"inside get_article_content(), article_url = {link} , title = {title}, date = {date}, body = {body}")
 
-            self.write_to_local_data(link, title, body, response)
+            self.write_to_local_data(link, title, body, date, response)
 
             yield {
                 'title': title,
@@ -512,8 +525,22 @@ class CovidNewsSpider(scrapy.Spider):
             }
 
 
-    def write_to_local_data(self, link, title, body, response):
-        if (title != None and any(keyword in title.lower() for keyword in search_keywords)) or (body != None and any(keyword in body.lower() for keyword in search_keywords)):
+    def write_to_local_data(self, link, title, body, date, response):
+        if "hour ago" in date.lower() or "hours ago" in date.lower() or \
+            "min ago" in date.lower() or "mins ago" in date.lower() or \
+            "sec ago" in date.lower() or "secs ago" in date.lower():
+            published_year = 2023
+        else:
+            date = parse(date)
+            published_year = date.year
+
+        date_is_within_covid_period = published_year >= 2019
+        print(f"date = {date}, and published_year = {published_year}, and date_is_within_covid_period = {date_is_within_covid_period}")
+
+        if ((title != None and any(keyword in title.lower() for keyword in search_keywords)) or \
+            (body != None and any(keyword in body.lower() for keyword in search_keywords) and \
+             any(country in body.lower() for country in search_countries))) and \
+            (date_is_within_covid_period):
             # Create a unique filename for each URL by removing the 'http://', replacing '/' with '_', and adding '.html'
             filename = link.replace('http://', '').replace('/', '_') + '.html'
             print("filename = ", filename)
