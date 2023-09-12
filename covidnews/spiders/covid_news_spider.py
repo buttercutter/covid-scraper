@@ -30,6 +30,11 @@ excluded_file_extensions = [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".pdf", ".x
 # Only parses URLs within these domains
 allowed_domain_names = ["archive.org", "straitstimes.com", "channelnewsasia.com"]
 
+# not accessible due to DNA lookup error or the webpage had since migrated to other subdomains
+inaccessible_subdomain_names = ["olympianbuilder.straitstimes.com", "ststaff.straitstimes.com", "media.straitstimes.com",
+                                "buildsg2065.straitstimes.com", "origin-stcommunities.straitstimes.com",
+                                "euro2016.straitstimes.com"]
+
 
 class CovidNewsSpider(scrapy.Spider):
     name = 'covid_news_spider'
@@ -48,6 +53,36 @@ class CovidNewsSpider(scrapy.Spider):
             'scrapy.downloadermiddlewares.httpcompression.HttpCompressionMiddleware': None,
         },
     }
+
+    js_script = """
+        function main(splash)
+
+          -- Go to page
+          splash:go(splash.args.url)
+
+          -- Wait for 5 seconds
+          splash:wait(5.0)
+
+          -- Print url
+          print("splash:get_url() = ", splash:get_url())
+
+          -- Select button
+          local close_btn = splash:select('#pclose-btn')
+
+          -- Print details
+          print("close_btn = ", close_btn:tostring())
+
+          -- Click button
+          close_btn:mouse_click()
+
+          -- Wait 2 seconds
+          splash:wait(2.0)
+
+          -- Return HTML after waiting
+          return splash:html()
+
+        end
+        """
 
     def search_archives(self, search_keywords, countries, creators, types, languages):
 
@@ -191,41 +226,11 @@ class CovidNewsSpider(scrapy.Spider):
                                 yield scrapy.Request(identifier_url, callback=self.parse, meta={'retry_times': RETRY_TIMES})
 
             else:
-                js_script = """
-                    function main(splash)
-
-                      -- Go to page
-                      splash:go(splash.args.url)
-
-                      -- Wait for 10 seconds
-                      splash:wait(10.0)
-
-                      -- Print url
-                      print("splash:get_url() = ", splash:get_url())
-
-                      -- Select button
-                      local close_btn = splash:select('#pclose-btn')
-
-                      -- Print details
-                      print("close_btn = ", close_btn:tostring())
-
-                      -- Click button
-                      close_btn:mouse_click()
-
-                      -- Wait 2 seconds
-                      splash:wait(2.0)
-
-                      -- Return HTML after waiting
-                      return splash:html()
-
-                    end
-                    """
-
                 yield SplashRequest(
                         url,
                         callback=self.parse,
                         endpoint='execute',  # for closing advertising overlay page to get to desired page
-                        args={'lua_source': js_script, 'adblock': True, 'wait': 10, 'resource_timeout': 10},
+                        args={'lua_source': self.js_script, 'adblock': True, 'wait': 10, 'resource_timeout': 10},
                         splash_headers={'X-Splash-Render-HTML': 1},  # for non-pure html with javascript
                         headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
                     )
@@ -237,12 +242,8 @@ class CovidNewsSpider(scrapy.Spider):
 
         if not link or "javascript" in link or "mailto" in link or "whatsapp://" in link or \
             "play.google.com" in link or "apps.apple.com" in link or \
-             "www.channelnewsasia.com/watch" in link or "cnaluxury.channelnewsasia.com" in link or \
-            "www.channelnewsasia.com/video" in link or "www.straitstimes.com/video" in link or \
-            "www.channelnewsasia.com/listen" in link or \
-            "www.straitstimes.com/author" in link or \
-            "www.channelnewsasia.com/about-us" in link or \
             any(file_extension in link for file_extension in excluded_file_extensions) or \
+            any(subdomain_name in link for subdomain_name in inaccessible_subdomain_names) or \
             not any(domain_name in link for domain_name in allowed_domain_names):
             # skipping urls
             # This is a workaround to avoid scraping url links inside irrelevant pages redirected from other urls
@@ -298,11 +299,8 @@ class CovidNewsSpider(scrapy.Spider):
         if link:
             if "javascript" in link or "mailto" in link or "whatsapp://" in link or \
                 "play.google.com" in link or "apps.apple.com" in link or \
-                 "www.channelnewsasia.com/watch" in link or "cnaluxury.channelnewsasia.com" in link or \
-                "www.channelnewsasia.com/video" in link or "www.straitstimes.com/video" in link or \
-                "www.channelnewsasia.com/listen" in link or \
-                "www.channelnewsasia.com/about-us" in link or \
                 any(file_extension in link for file_extension in excluded_file_extensions) or \
+                any(subdomain_name in link for subdomain_name in inaccessible_subdomain_names) or \
                 not any(domain_name in link for domain_name in allowed_domain_names):
                 # Skip links
                 print(f"skipped {link} inside parse()")
@@ -349,11 +347,8 @@ class CovidNewsSpider(scrapy.Spider):
 
                 if "javascript" in link or "mailto" in link or "whatsapp://" in link or \
                     "play.google.com" in link or "apps.apple.com" in link or \
-                     "www.channelnewsasia.com/watch" in link or "cnaluxury.channelnewsasia.com" in link or \
-                    "www.channelnewsasia.com/video" in link or "www.straitstimes.com/video" in link or \
-                    "www.channelnewsasia.com/listen" in link or \
-                    "www.channelnewsasia.com/about-us" in link or \
                     any(file_extension in link for file_extension in excluded_file_extensions) or \
+                    any(subdomain_name in link for subdomain_name in inaccessible_subdomain_names) or \
                     not any(domain_name in link for domain_name in allowed_domain_names):
                     # Skip links
                     continue
@@ -365,8 +360,9 @@ class CovidNewsSpider(scrapy.Spider):
                     #response.urljoin(next_page),
                     url=next_page_url,
                     callback=self.parse,
-                    endpoint='render.html',  # for non-pure html with javascript
-                    args={'wait': 0.5},
+                    #endpoint='render.html',  # for non-pure html with javascript
+                    endpoint='execute',  # for closing advertising overlay page to get to desired page
+                    args={'lua_source': self.js_script, 'adblock': True, 'wait': 0.5, 'resource_timeout': 10},
                     headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
                 )
 
@@ -446,12 +442,16 @@ class CovidNewsSpider(scrapy.Spider):
 
         if not link or "javascript" in link or "mailto" in link or "whatsapp://" in link or \
             "play.google.com" in link or "apps.apple.com" in link or \
-             "www.channelnewsasia.com/watch" in link or "cnaluxury.channelnewsasia.com" in link or \
-            "www.channelnewsasia.com/video" in link or "www.straitstimes.com/video" in link or \
-            "www.channelnewsasia.com/listen" in link or \
-            "www.straitstimes.com/author" in link or \
-            "www.channelnewsasia.com/about-us" in link or \
+             "channelnewsasia.com/watch/" in link or "cnaluxury.channelnewsasia.com" in link or \
+            "straitstimes.com/multimedia/graphics/" in link or \
+            "cnalifestyle.channelnewsasia.com/interactives/" in link or \
+            "channelnewsasia.com/video" in link or "straitstimes.com/video" in link or \
+            "channelnewsasia.com/listen/" in link or \
+            "channelnewsasia.com/author" in link or \
+            "straitstimes.com/author" in link or \
+            "channelnewsasia.com/about-us" in link or \
             any(file_extension in link for file_extension in excluded_file_extensions) or \
+            any(subdomain_name in link for subdomain_name in inaccessible_subdomain_names) or \
             not any(domain_name in link for domain_name in allowed_domain_names):
             # skipping urls
             print(f"skipped {link} inside parse_article()")
@@ -464,9 +464,10 @@ class CovidNewsSpider(scrapy.Spider):
             yield SplashRequest(
                 url=article_url,
                 callback=self.get_article_content,
-                endpoint='render.html',  # for non-pure html with javascript
                 meta={'title': title, 'date': date},  # Pass additional data here
-                args={'wait': 0.5},
+                #endpoint='render.html',  # for non-pure html with javascript
+                endpoint='execute',  # for closing advertising overlay page to get to desired page
+                args={'lua_source': self.js_script, 'adblock': True, 'wait': 0.5, 'resource_timeout': 10},
                 headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,      like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
             )
 
@@ -491,9 +492,15 @@ class CovidNewsSpider(scrapy.Spider):
             body = '\n'.join(body)
 
             if date is None:
+                print("straitstimes date is None !!!")
                 date = response.css('.group-story-changedate .story-changeddate::text').get() or \
                         response.css('.group-story-postdate .story-postdate::text').get() or \
-                        response.css('.st-byline time::text').get()
+                        response.css('.byline::text').get() or \
+                        response.css('time::attr(datetime)').get() or \
+                        response.css('time[itemprop="datePublished"]::attr(datetime)').get()
+
+                if response.css('.byline::text').get() is not None and 'PUBLISHED: ' in date:
+                    date = date.split('PUBLISHED: ')[-1]
 
         elif 'archive.org' in response.url:
             body = response.css('div.article p::text').getall() or \
@@ -504,16 +511,23 @@ class CovidNewsSpider(scrapy.Spider):
         else:
             body = None
 
+        if date:
+            date = date.strip()  # to remove unnecessary whitespace or newlines characters
+
         link = response.url
 
         if not link or "javascript" in link or "mailto" in link or "whatsapp://" in link or \
             "play.google.com" in link or "apps.apple.com" in link or \
-             "www.channelnewsasia.com/watch" in link or "cnaluxury.channelnewsasia.com" in link or \
-            "www.channelnewsasia.com/video" in link or "www.straitstimes.com/video" in link or \
-            "www.channelnewsasia.com/listen" in link or \
-            "www.straitstimes.com/author" in link or \
-            "www.channelnewsasia.com/about-us" in link or \
+             "channelnewsasia.com/watch/" in link or "cnaluxury.channelnewsasia.com" in link or \
+            "straitstimes.com/multimedia/graphics/" in link or \
+            "cnalifestyle.channelnewsasia.com/interactives/" in link or \
+            "channelnewsasia.com/video" in link or "straitstimes.com/video" in link or \
+            "channelnewsasia.com/listen/" in link or \
+            "channelnewsasia.com/author" in link or \
+            "straitstimes.com/author" in link or \
+            "channelnewsasia.com/about-us" in link or \
             any(file_extension in link for file_extension in excluded_file_extensions) or \
+            any(subdomain_name in link for subdomain_name in inaccessible_subdomain_names) or \
             not any(domain_name in link for domain_name in allowed_domain_names):
             # skipping urls
             print(f"skipped {link} inside get_article_content()")
@@ -557,7 +571,7 @@ class CovidNewsSpider(scrapy.Spider):
             # Write the entire body of the response to a file
             #with open("/home/phung/covidnews_result/"+filename, 'wb') as f:
             with open(filename, 'wb') as f:
-                f.write(response.body)
+                f.write(body.encode('utf-8'))
 
         return None
 
