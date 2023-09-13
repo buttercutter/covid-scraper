@@ -33,19 +33,29 @@ allowed_domain_names = ["archive.org", "straitstimes.com", "channelnewsasia.com"
 # not accessible due to DNA lookup error or the webpage had since migrated to other subdomains
 inaccessible_subdomain_names = ["olympianbuilder.straitstimes.com", "ststaff.straitstimes.com", "media.straitstimes.com",
                                 "buildsg2065.straitstimes.com", "origin-stcommunities.straitstimes.com",
-                                "euro2016.straitstimes.com"]
+                                "stcommunities.straitstimes.com", "euro2016.straitstimes.com",
+                                "awsstaff.straitstimes.com", "eee.straitstimes.com",
+                                "prdstaff.straitstimes.com", "staff.straitstimes.com",
+                                "articles.stclassifieds.sg"]
+
+# Test specific webpages with higher priority
+TEST_SPECIFIC = False
 
 
 class CovidNewsSpider(scrapy.Spider):
     name = 'covid_news_spider'
 
-    start_urls = [
-        #'https://web.archive.org/',
-        'https://www.straitstimes.com/',
-        'https://www.channelnewsasia.com/'
-        #'https://www.channelnewsasia.com/search?q=covid'  # [scrapy.downloadermiddlewares.robotstxt] DEBUG: Forbidden by robots.txt:
-        #'https://www.straitstimes.com/search?searchkey=covid'  # Forbidden by https://www.straitstimes.com/robots.txt
-    ]
+    if TEST_SPECIFIC:
+        start_urls = ['https://www.channelnewsasia.com/singapore/malaysia-singapore-vtl-expansion-pm-lee-ismail-sabri-omicron-covid-19-2344971']
+
+    else:
+        start_urls = [
+            #'https://web.archive.org/',
+            'https://www.straitstimes.com/',
+            'https://www.channelnewsasia.com/'
+            #'https://www.channelnewsasia.com/search?q=covid'  # [scrapy.downloadermiddlewares.robotstxt] DEBUG: Forbidden by robots.txt:
+            #'https://www.straitstimes.com/search?searchkey=covid'  # Forbidden by https://www.straitstimes.com/robots.txt
+        ]
 
     custom_settings = {
         'DOWNLOADER_MIDDLEWARES': {
@@ -57,29 +67,32 @@ class CovidNewsSpider(scrapy.Spider):
     js_script = """
         function main(splash)
 
-          -- Go to page
-          splash:go(splash.args.url)
+            -- Go to page
+            splash:go(splash.args.url)
 
-          -- Wait for 5 seconds
-          splash:wait(5.0)
+            -- Wait for 5 seconds
+            splash:wait(5.0)
 
-          -- Print url
-          print("splash:get_url() = ", splash:get_url())
+            -- Print url
+            print("splash:get_url() = ", splash:get_url())
 
-          -- Select button
-          local close_btn = splash:select('#pclose-btn')
+            -- Select button
+            local close_ads_btn = splash:select('#pclose-btn')
+            local expand_btn = splash:select('a.article__read-full-story-button')
 
-          -- Print details
-          print("close_btn = ", close_btn:tostring())
+            -- Print details
+            print("close_ads_btn = ", close_ads_btn:tostring())
+            print("expand_btn = ", expand_btn:tostring())
 
-          -- Click button
-          close_btn:mouse_click()
+            -- Click button
+            close_ads_btn:mouse_click()
+            expand_btn:mouse_click()
 
-          -- Wait 2 seconds
-          splash:wait(2.0)
+            -- Wait 5 seconds
+            splash:wait(5.0)
 
-          -- Return HTML after waiting
-          return splash:html()
+            -- Return HTML after waiting
+            return splash:html()
 
         end
         """
@@ -240,11 +253,19 @@ class CovidNewsSpider(scrapy.Spider):
 
         link = response.url
 
+        # Extract domain name from link
+        match = re.search(r'^https?://([\w\.-]+)', link)
+        if match:
+            domain_name = match.group(1)
+            domain_name = domain_name.lstrip('www.')
+        else:
+            domain_name = None
+
         if not link or "javascript" in link or "mailto" in link or "whatsapp://" in link or \
             "play.google.com" in link or "apps.apple.com" in link or \
             any(file_extension in link for file_extension in excluded_file_extensions) or \
             any(subdomain_name in link for subdomain_name in inaccessible_subdomain_names) or \
-            not any(domain_name in link for domain_name in allowed_domain_names):
+            domain_name not in allowed_domain_names:
             # skipping urls
             # This is a workaround to avoid scraping url links inside irrelevant pages redirected from other urls
             return None
@@ -273,15 +294,25 @@ class CovidNewsSpider(scrapy.Spider):
 
     def fix_url(self, url, default_url='https://www.example.com/'):
         # Remove repeated protocols
+        url = re.sub(r'^http://link%20to%20microsite%20', '', url)
         url = re.sub(r"https?://https?://", "https://", url)
-        url = re.sub(r"https?://\(https?//?", "https://", url)
+        url = re.sub(r"https?://\(https?:?//?", "https://", url)
         url = re.sub(r"https?://ttps?//?", "https://", url)
+        url = re.sub(r'^http://%22https/', 'https:/', url)
+        url = re.sub(r'^https?://www.https?/', 'https://', url)
+        url = re.sub(r'^https?://www.straitsthttps?/', 'https://', url)
 
         # Fix common typo in domain name
         url = re.sub(r"https://ww\.", "https://www.", url)
+        url = re.sub(r'^https?://wwww', 'https://www', url)
+        url = re.sub(r"http://taff\.straitstimes\.com/", "https://www.straitstimes.com/", url)
+        url = re.sub(r"http://wwwf\.straitstimes\.com/", "https://www.straitstimes.com/", url)
 
         if not url.startswith("http"):
             url = urljoin(default_url, url)
+
+        # Removes any whitespace characters
+        url = url.strip()
 
         # If the URL is fine, return it as is
         return url
@@ -296,12 +327,20 @@ class CovidNewsSpider(scrapy.Spider):
             'https://archive.org/stream/' in response.url or \
             'https://archive.org/compress/' in response.url
 
+        # Extract domain name from link
+        match = re.search(r'^https?://([\w\.-]+)', link)
+        if match:
+            domain_name = match.group(1)
+            domain_name = domain_name.lstrip('www.')
+        else:
+            domain_name = None
+
         if link:
             if "javascript" in link or "mailto" in link or "whatsapp://" in link or \
                 "play.google.com" in link or "apps.apple.com" in link or \
                 any(file_extension in link for file_extension in excluded_file_extensions) or \
                 any(subdomain_name in link for subdomain_name in inaccessible_subdomain_names) or \
-                not any(domain_name in link for domain_name in allowed_domain_names):
+                domain_name not in allowed_domain_names:
                 # Skip links
                 print(f"skipped {link} inside parse()")
 
@@ -345,11 +384,19 @@ class CovidNewsSpider(scrapy.Spider):
             if next_page_url:
                 link = next_page_url
 
+                # Extract domain name from link
+                match = re.search(r'^https?://([\w\.-]+)', link)
+                if match:
+                    domain_name = match.group(1)
+                    domain_name = domain_name.lstrip('www.')
+                else:
+                    domain_name = None
+
                 if "javascript" in link or "mailto" in link or "whatsapp://" in link or \
                     "play.google.com" in link or "apps.apple.com" in link or \
                     any(file_extension in link for file_extension in excluded_file_extensions) or \
                     any(subdomain_name in link for subdomain_name in inaccessible_subdomain_names) or \
-                    not any(domain_name in link for domain_name in allowed_domain_names):
+                    domain_name not in allowed_domain_names:
                     # Skip links
                     continue
 
@@ -406,6 +453,7 @@ class CovidNewsSpider(scrapy.Spider):
         if 'channelnewsasia' in response.url:
             title = article.css('title::text').get() or \
                     article.css('h1.entry-title::text').get() or \
+                    article.css('.h1.h1--page-title::text').get() or \
                     article.css('div.quick-link[data-heading]::attr(data-heading)').get() or \
                     article.css('div.quick-link::attr(data-heading)').get() or \
                     article.css('meta[property="og:title"]::attr(content)').get() or \
@@ -419,7 +467,8 @@ class CovidNewsSpider(scrapy.Spider):
         elif 'straitstimes' in response.url:
             title = article.css('h5.card-title a::text').get()
             date = article.css('time::text').get() or \
-                    article.css('time::attr(datetime)').get()
+                    article.css('time::attr(datetime)').get() or \
+                    article.css('.story-postdate::text').get()
 
             link = article.css('a::attr(href)').get()
 
@@ -440,10 +489,23 @@ class CovidNewsSpider(scrapy.Spider):
         if link:
             link = self.fix_url(link, response.url)
 
+            # Extract domain name from link
+            match = re.search(r'^https?://([\w\.-]+)', link)
+            if match:
+                domain_name = match.group(1)
+                domain_name = domain_name.lstrip('www.')
+            else:
+                domain_name = None
+        else:
+            domain_name = None
+
+        print(f"inside parse_article(), parent_url = {response.url} , article_url = {link} , title = {title}, date = {date}")
+
         if not link or "javascript" in link or "mailto" in link or "whatsapp://" in link or \
             "play.google.com" in link or "apps.apple.com" in link or \
              "channelnewsasia.com/watch/" in link or "cnaluxury.channelnewsasia.com" in link or \
             "straitstimes.com/multimedia/graphics/" in link or \
+            "graphics.straitstimes.com/" in link or \
             "cnalifestyle.channelnewsasia.com/interactives/" in link or \
             "channelnewsasia.com/video" in link or "straitstimes.com/video" in link or \
             "channelnewsasia.com/listen/" in link or \
@@ -452,13 +514,12 @@ class CovidNewsSpider(scrapy.Spider):
             "channelnewsasia.com/about-us" in link or \
             any(file_extension in link for file_extension in excluded_file_extensions) or \
             any(subdomain_name in link for subdomain_name in inaccessible_subdomain_names) or \
-            not any(domain_name in link for domain_name in allowed_domain_names):
+            domain_name not in allowed_domain_names:
             # skipping urls
             print(f"skipped {link} inside parse_article()")
             yield None
 
         else:
-            print(f"inside parse_article(), article_url = {link} , title = {title}, date = {date}")
             article_url = link
 
             yield SplashRequest(
@@ -496,11 +557,17 @@ class CovidNewsSpider(scrapy.Spider):
                 date = response.css('.group-story-changedate .story-changeddate::text').get() or \
                         response.css('.group-story-postdate .story-postdate::text').get() or \
                         response.css('.byline::text').get() or \
+                        response.css('.st-byline::text').get() or \
+                        response.css('time::text').get() or \
                         response.css('time::attr(datetime)').get() or \
+                        response.css('.lb24-default-list-item-date::text').get() or \
                         response.css('time[itemprop="datePublished"]::attr(datetime)').get()
 
                 if response.css('.byline::text').get() is not None and 'PUBLISHED: ' in date:
                     date = date.split('PUBLISHED: ')[-1]
+
+                if response.css('.st-byline::text').get() is not None and 'Published: ' in date:
+                    date = date.split('Published: ')[-1]
 
         elif 'archive.org' in response.url:
             body = response.css('div.article p::text').getall() or \
@@ -516,10 +583,19 @@ class CovidNewsSpider(scrapy.Spider):
 
         link = response.url
 
+        # Extract domain name from link
+        match = re.search(r'^https?://([\w\.-]+)', link)
+        if match:
+            domain_name = match.group(1)
+            domain_name = domain_name.lstrip('www.')
+        else:
+            domain_name = None
+
         if not link or "javascript" in link or "mailto" in link or "whatsapp://" in link or \
             "play.google.com" in link or "apps.apple.com" in link or \
              "channelnewsasia.com/watch/" in link or "cnaluxury.channelnewsasia.com" in link or \
             "straitstimes.com/multimedia/graphics/" in link or \
+            "graphics.straitstimes.com/" in link or \
             "cnalifestyle.channelnewsasia.com/interactives/" in link or \
             "channelnewsasia.com/video" in link or "straitstimes.com/video" in link or \
             "channelnewsasia.com/listen/" in link or \
@@ -528,7 +604,7 @@ class CovidNewsSpider(scrapy.Spider):
             "channelnewsasia.com/about-us" in link or \
             any(file_extension in link for file_extension in excluded_file_extensions) or \
             any(subdomain_name in link for subdomain_name in inaccessible_subdomain_names) or \
-            not any(domain_name in link for domain_name in allowed_domain_names):
+            domain_name not in allowed_domain_names:
             # skipping urls
             print(f"skipped {link} inside get_article_content()")
             yield None
