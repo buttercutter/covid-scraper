@@ -58,7 +58,7 @@ class CovidNewsSpider(scrapy.Spider):
     name = 'covid_news_spider'
 
     if TEST_SPECIFIC:
-        start_urls = ['https://www.channelnewsasia.com/singapore/malaysia-singapore-vtl-expansion-pm-lee-ismail-sabri-omicron-covid-19-2344971']
+        start_urls = ['https://www.straitstimes.com/business/economy/balancing-the-budget-revenue-expenditure']
 
     else:
         start_urls = [
@@ -86,15 +86,15 @@ class CovidNewsSpider(scrapy.Spider):
             splash:wait(5.0)
 
             -- Print url
-            print("splash:get_url() = ", splash:get_url())
+            print("splash:url() = ", splash:url())
 
             -- Select button
             local close_ads_btn = splash:select('#pclose-btn')
             local expand_btn = splash:select('a.article__read-full-story-button')
 
             -- Print details
-            print("close_ads_btn = ", close_ads_btn:tostring())
-            print("expand_btn = ", expand_btn:tostring())
+            print("close_ads_btn = ", close_ads_btn:outerHtml())
+            print("expand_btn = ", expand_btn:outerHtml())
 
             -- Click button
             close_ads_btn:mouse_click()
@@ -105,6 +105,41 @@ class CovidNewsSpider(scrapy.Spider):
 
             -- Return HTML after waiting
             return splash:html()
+
+        end
+        """
+
+    js_script_test_specific = """
+        function main(splash)
+
+            -- Go to page
+            splash:go(splash.args.url)
+
+            -- Wait for 5 seconds
+            splash:wait(5.0)
+
+            -- Print url
+            print("splash:url() = ", splash:url())
+
+            -- Select button
+            local close_ads_btn = splash:select('#pclose-btn')
+            local expand_btn = splash:select('a.article__read-full-story-button')
+
+            -- Print details
+            print("close_ads_btn = ", close_ads_btn:outerHtml())
+            print("expand_btn = ", expand_btn:outerHtml())
+
+            -- Click button
+            close_ads_btn:mouse_click()
+            expand_btn:mouse_click()
+
+            -- Wait 5 seconds
+            splash:wait(5.0)
+
+            return {
+                url = splash:url(),
+                html = splash:html(),
+            }
 
         end
         """
@@ -251,14 +286,28 @@ class CovidNewsSpider(scrapy.Spider):
                                 yield scrapy.Request(identifier_url, callback=self.parse, meta={'retry_times': RETRY_TIMES})
 
             else:
-                yield SplashRequest(
-                        url,
-                        callback=self.parse,
-                        endpoint='execute',  # for closing advertising overlay page to get to desired page
-                        args={'lua_source': self.js_script, 'adblock': True, 'wait': 10, 'resource_timeout': 10},
-                        splash_headers={'X-Splash-Render-HTML': 1},  # for non-pure html with javascript
-                        headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
-                    )
+                if TEST_SPECIFIC:
+                    yield SplashRequest(
+                            url,
+                            callback=self.get_article_content,
+                            meta={'title': None, 'date': None},  # Pass additional data here, assigned None here for legacy function argument purpose
+                            endpoint='execute',  # for closing advertising overlay page to get to desired page
+                            args={'lua_source': self.js_script_test_specific,
+                                  'lua_source_isolated': False,  # for showing self.js_script print() output
+                                  'adblock': True, 'wait': 10, 'resource_timeout': 10},
+                            splash_headers={'X-Splash-Render-HTML': 1},  # for non-pure html with javascript
+                            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
+                        )
+
+                else:
+                    yield SplashRequest(
+                            url,
+                            callback=self.parse,
+                            endpoint='execute',  # for closing advertising overlay page to get to desired page
+                            args={'lua_source': self.js_script, 'adblock': True, 'wait': 10, 'resource_timeout': 10},
+                            splash_headers={'X-Splash-Render-HTML': 1},  # for non-pure html with javascript
+                            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
+                        )
 
     def get_next_pages(self, response):
         print("inside get_next_pages(), response.url = ", response.url)
@@ -279,6 +328,7 @@ class CovidNewsSpider(scrapy.Spider):
             domain_name = None
 
         if link and redirected_url:
+            print(f"{redirected_url} is redirected from {link}")
             link = redirected_url
 
         if not link or "javascript" in link or "mailto" in link or "whatsapp://" in link or \
@@ -366,6 +416,7 @@ class CovidNewsSpider(scrapy.Spider):
             domain_name = None
 
         if link and redirected_url:
+            print(f"{redirected_url} is redirected from {link}")
             link = redirected_url
 
         if not link or "javascript" in link or "mailto" in link or "whatsapp://" in link or \
@@ -542,6 +593,7 @@ class CovidNewsSpider(scrapy.Spider):
             domain_name = None
 
         if link and redirected_url:
+            print(f"{redirected_url} is redirected from {link}")
             link = redirected_url
 
         print(f"inside parse_article(), parent_url = {response.url} , article_url = {link} , title = {title}, date = {date}")
@@ -577,6 +629,30 @@ class CovidNewsSpider(scrapy.Spider):
         # Access the additional data here
         title = response.meta['title']
         date = response.meta['date']
+
+        link = response.url
+
+        # For checking if redirected_url is in blacklist
+        if TEST_SPECIFIC:
+            redirected_url = response.data['url']  # Access data returned by the Lua "js_script_test_specfic"
+        else:
+            redirected_url = response.headers.get('Location')
+
+        print(f"redirected_url is {redirected_url} inside get_article_content()")
+        if redirected_url:
+            redirected_url = redirected_url.decode()
+
+        # Extract domain name from link
+        match = re.search(r'^https?://([\w\.-]+)', link)
+        if match:
+            domain_name = match.group(1)
+            domain_name = domain_name.lstrip('www.')
+        else:
+            domain_name = None
+
+        if link and redirected_url:
+            print(f"{redirected_url} is redirected from {link}")
+            link = redirected_url
 
         if 'channelnewsasia' in response.url:
             body = response.xpath('//p[not(@*)]//descendant-or-self::node()/text()').getall()
@@ -618,24 +694,6 @@ class CovidNewsSpider(scrapy.Spider):
 
         if date:
             date = date.strip()  # to remove unnecessary whitespace or newlines characters
-
-        link = response.url
-
-        # For checking if redirected_url is in blacklist
-        redirected_url = response.headers.get('Location')
-        if redirected_url:
-            redirected_url = redirected_url.decode()
-
-        # Extract domain name from link
-        match = re.search(r'^https?://([\w\.-]+)', link)
-        if match:
-            domain_name = match.group(1)
-            domain_name = domain_name.lstrip('www.')
-        else:
-            domain_name = None
-
-        if link and redirected_url:
-            link = redirected_url
 
         if not link or "javascript" in link or "mailto" in link or "whatsapp://" in link or \
             "play.google.com" in link or "apps.apple.com" in link or \
