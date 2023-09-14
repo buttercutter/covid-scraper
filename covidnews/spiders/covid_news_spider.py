@@ -38,6 +38,18 @@ inaccessible_subdomain_names = ["olympianbuilder.straitstimes.com", "ststaff.str
                                 "prdstaff.straitstimes.com", "staff.straitstimes.com",
                                 "articles.stclassifieds.sg"]
 
+# these subdomains contains irrelevant contents for text-based media article scraping
+irrelevant_subdomain_names = ["channelnewsasia.com/watch/", "cnaluxury.channelnewsasia.com",
+                              "straitstimes.com/multimedia/graphics/", "graphics.straitstimes.com/",
+                              "cnalifestyle.channelnewsasia.com/interactives/", "channelnewsasia.com/video",
+                              "straitstimes.com/video", "channelnewsasia.com/listen/",
+                              "channelnewsasia.com/author", "straitstimes.com/author",
+                              "channelnewsasia.com/about-us"]
+
+# articles that are published with only a title, and without any body content and publish date
+incomplete_articles = ["https://www.straitstimes.com/singapore/education/ask-sandra-jc-mergers",
+                       "https://www.straitstimes.com/business/economy/askst-what-benefits-did-budget-2016-offer-entrepreneurs-and-single-women"]
+
 # Test specific webpages with higher priority
 TEST_SPECIFIC = False
 
@@ -253,6 +265,11 @@ class CovidNewsSpider(scrapy.Spider):
 
         link = response.url
 
+        # For checking if redirected_url is in blacklist
+        redirected_url = response.headers.get('Location')
+        if redirected_url:
+            redirected_url = redirected_url.decode()
+
         # Extract domain name from link
         match = re.search(r'^https?://([\w\.-]+)', link)
         if match:
@@ -261,13 +278,19 @@ class CovidNewsSpider(scrapy.Spider):
         else:
             domain_name = None
 
+        if link and redirected_url:
+            link = redirected_url
+
         if not link or "javascript" in link or "mailto" in link or "whatsapp://" in link or \
             "play.google.com" in link or "apps.apple.com" in link or \
+            any(article_url in link for article_url in incomplete_articles) or \
             any(file_extension in link for file_extension in excluded_file_extensions) or \
+            any(subdomain_name in link for subdomain_name in irrelevant_subdomain_names) or \
             any(subdomain_name in link for subdomain_name in inaccessible_subdomain_names) or \
             domain_name not in allowed_domain_names:
             # skipping urls
             # This is a workaround to avoid scraping url links inside irrelevant pages redirected from other urls
+            print(f"skipped {link} inside get_next_pages()")
             return None
 
         if 'channelnewsasia' in response.url:
@@ -304,9 +327,11 @@ class CovidNewsSpider(scrapy.Spider):
 
         # Fix common typo in domain name
         url = re.sub(r"https://ww\.", "https://www.", url)
+        url = re.sub(r"https?://www\.\.", "https://www.", url)
         url = re.sub(r'^https?://wwww', 'https://www', url)
         url = re.sub(r"http://taff\.straitstimes\.com/", "https://www.straitstimes.com/", url)
         url = re.sub(r"http://wwwf\.straitstimes\.com/", "https://www.straitstimes.com/", url)
+        url = re.sub(r"http://wwwstraitstimes\.com/", "https://www.straitstimes.com/", url)
 
         if not url.startswith("http"):
             url = urljoin(default_url, url)
@@ -327,6 +352,11 @@ class CovidNewsSpider(scrapy.Spider):
             'https://archive.org/stream/' in response.url or \
             'https://archive.org/compress/' in response.url
 
+        # For checking if redirected_url is in blacklist
+        redirected_url = response.headers.get('Location')
+        if redirected_url:
+            redirected_url = redirected_url.decode()
+
         # Extract domain name from link
         match = re.search(r'^https?://([\w\.-]+)', link)
         if match:
@@ -335,19 +365,23 @@ class CovidNewsSpider(scrapy.Spider):
         else:
             domain_name = None
 
-        if link:
-            if "javascript" in link or "mailto" in link or "whatsapp://" in link or \
-                "play.google.com" in link or "apps.apple.com" in link or \
-                any(file_extension in link for file_extension in excluded_file_extensions) or \
-                any(subdomain_name in link for subdomain_name in inaccessible_subdomain_names) or \
-                domain_name not in allowed_domain_names:
-                # Skip links
-                print(f"skipped {link} inside parse()")
+        if link and redirected_url:
+            link = redirected_url
 
-            else:
-                if not INTERNETARCHIVE_FULL_TEXT:
-                    articles = self.parse_articles(response)
-                print("articles = ", articles)
+        if not link or "javascript" in link or "mailto" in link or "whatsapp://" in link or \
+            "play.google.com" in link or "apps.apple.com" in link or \
+            any(article_url in link for article_url in incomplete_articles) or \
+            any(file_extension in link for file_extension in excluded_file_extensions) or \
+            any(subdomain_name in link for subdomain_name in irrelevant_subdomain_names) or \
+            any(subdomain_name in link for subdomain_name in inaccessible_subdomain_names) or \
+            domain_name not in allowed_domain_names:
+            # Skip links
+            print(f"skipped {link} or {redirected_url} inside parse() A")
+
+        else:
+            if not INTERNETARCHIVE_FULL_TEXT:
+                articles = self.parse_articles(response)
+            print("articles = ", articles)
 
         if articles is not None:
             articles = list(articles)
@@ -394,10 +428,13 @@ class CovidNewsSpider(scrapy.Spider):
 
                 if "javascript" in link or "mailto" in link or "whatsapp://" in link or \
                     "play.google.com" in link or "apps.apple.com" in link or \
+                    any(article_url in link for article_url in incomplete_articles) or \
                     any(file_extension in link for file_extension in excluded_file_extensions) or \
+                    any(subdomain_name in link for subdomain_name in irrelevant_subdomain_names) or \
                     any(subdomain_name in link for subdomain_name in inaccessible_subdomain_names) or \
                     domain_name not in allowed_domain_names:
                     # Skip links
+                    print(f"skipped {link} inside parse() B")
                     continue
 
                 print("response.url = ", response.url)
@@ -486,6 +523,11 @@ class CovidNewsSpider(scrapy.Spider):
         if date:
             date = date.strip()  # to remove unnecessary whitespace or newlines characters
 
+        # For checking if redirected_url is in blacklist
+        redirected_url = response.headers.get('Location')
+        if redirected_url:
+            redirected_url = redirected_url.decode()
+
         if link:
             link = self.fix_url(link, response.url)
 
@@ -499,20 +541,16 @@ class CovidNewsSpider(scrapy.Spider):
         else:
             domain_name = None
 
+        if link and redirected_url:
+            link = redirected_url
+
         print(f"inside parse_article(), parent_url = {response.url} , article_url = {link} , title = {title}, date = {date}")
 
         if not link or "javascript" in link or "mailto" in link or "whatsapp://" in link or \
             "play.google.com" in link or "apps.apple.com" in link or \
-             "channelnewsasia.com/watch/" in link or "cnaluxury.channelnewsasia.com" in link or \
-            "straitstimes.com/multimedia/graphics/" in link or \
-            "graphics.straitstimes.com/" in link or \
-            "cnalifestyle.channelnewsasia.com/interactives/" in link or \
-            "channelnewsasia.com/video" in link or "straitstimes.com/video" in link or \
-            "channelnewsasia.com/listen/" in link or \
-            "channelnewsasia.com/author" in link or \
-            "straitstimes.com/author" in link or \
-            "channelnewsasia.com/about-us" in link or \
+            any(article_url in link for article_url in incomplete_articles) or \
             any(file_extension in link for file_extension in excluded_file_extensions) or \
+            any(subdomain_name in link for subdomain_name in irrelevant_subdomain_names) or \
             any(subdomain_name in link for subdomain_name in inaccessible_subdomain_names) or \
             domain_name not in allowed_domain_names:
             # skipping urls
@@ -583,6 +621,11 @@ class CovidNewsSpider(scrapy.Spider):
 
         link = response.url
 
+        # For checking if redirected_url is in blacklist
+        redirected_url = response.headers.get('Location')
+        if redirected_url:
+            redirected_url = redirected_url.decode()
+
         # Extract domain name from link
         match = re.search(r'^https?://([\w\.-]+)', link)
         if match:
@@ -591,18 +634,14 @@ class CovidNewsSpider(scrapy.Spider):
         else:
             domain_name = None
 
+        if link and redirected_url:
+            link = redirected_url
+
         if not link or "javascript" in link or "mailto" in link or "whatsapp://" in link or \
             "play.google.com" in link or "apps.apple.com" in link or \
-             "channelnewsasia.com/watch/" in link or "cnaluxury.channelnewsasia.com" in link or \
-            "straitstimes.com/multimedia/graphics/" in link or \
-            "graphics.straitstimes.com/" in link or \
-            "cnalifestyle.channelnewsasia.com/interactives/" in link or \
-            "channelnewsasia.com/video" in link or "straitstimes.com/video" in link or \
-            "channelnewsasia.com/listen/" in link or \
-            "channelnewsasia.com/author" in link or \
-            "straitstimes.com/author" in link or \
-            "channelnewsasia.com/about-us" in link or \
+            any(article_url in link for article_url in incomplete_articles) or \
             any(file_extension in link for file_extension in excluded_file_extensions) or \
+            any(subdomain_name in link for subdomain_name in irrelevant_subdomain_names) or \
             any(subdomain_name in link for subdomain_name in inaccessible_subdomain_names) or \
             domain_name not in allowed_domain_names:
             # skipping urls
