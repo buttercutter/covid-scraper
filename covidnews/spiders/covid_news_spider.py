@@ -48,7 +48,8 @@ irrelevant_subdomain_names = ["channelnewsasia.com/watch/", "cnaluxury.channelne
 
 # articles that are published with only a title, and without any body content and publish date
 incomplete_articles = ["https://www.straitstimes.com/singapore/education/ask-sandra-jc-mergers",
-                       "https://www.straitstimes.com/business/economy/askst-what-benefits-did-budget-2016-offer-entrepreneurs-and-single-women"]
+                       "https://www.straitstimes.com/business/economy/askst-what-benefits-did-budget-2016-offer-entrepreneurs-and-single-women",
+                       "https://www.straitstimes.com/singapore/does-getting-zika-infection-once-confer-immunity"]
 
 # Test specific webpages with higher priority
 TEST_SPECIFIC = False
@@ -58,7 +59,8 @@ class CovidNewsSpider(scrapy.Spider):
     name = 'covid_news_spider'
 
     if TEST_SPECIFIC:
-        start_urls = ['https://www.straitstimes.com/business/economy/balancing-the-budget-revenue-expenditure']
+        start_urls = ['https://www.straitstimes.com/business/economy/balancing-the-budget-revenue-expenditure',
+                      "https://www.straitstimes.com/tags/politicians?page=39"]
 
     else:
         start_urls = [
@@ -103,6 +105,9 @@ class CovidNewsSpider(scrapy.Spider):
             -- Wait 5 seconds
             splash:wait(5.0)
 
+            -- Reload final url
+            splash:go(splash:url())
+
             -- Return HTML after waiting
             return splash:html()
 
@@ -135,6 +140,9 @@ class CovidNewsSpider(scrapy.Spider):
 
             -- Wait 5 seconds
             splash:wait(5.0)
+
+            -- Reload final url
+            splash:go(splash:url())
 
             return {
                 url = splash:url(),
@@ -379,9 +387,9 @@ class CovidNewsSpider(scrapy.Spider):
         url = re.sub(r"https://ww\.", "https://www.", url)
         url = re.sub(r"https?://www\.\.", "https://www.", url)
         url = re.sub(r'^https?://wwww', 'https://www', url)
-        url = re.sub(r"http://taff\.straitstimes\.com/", "https://www.straitstimes.com/", url)
-        url = re.sub(r"http://wwwf\.straitstimes\.com/", "https://www.straitstimes.com/", url)
-        url = re.sub(r"http://wwwstraitstimes\.com/", "https://www.straitstimes.com/", url)
+        url = re.sub(r"https?://taff\.straitstimes\.com/", "https://www.straitstimes.com/", url)
+        url = re.sub(r"https?://wwwf\.straitstimes\.com/", "https://www.straitstimes.com/", url)
+        url = re.sub(r"https?://wwwstraitstimes\.com/", "https://www.straitstimes.com/", url)
 
         if not url.startswith("http"):
             url = urljoin(default_url, url)
@@ -670,6 +678,7 @@ class CovidNewsSpider(scrapy.Spider):
                 print("straitstimes date is None !!!")
                 date = response.css('.group-story-changedate .story-changeddate::text').get() or \
                         response.css('.group-story-postdate .story-postdate::text').get() or \
+                        response.css('div.story-postdate::text').get() or \
                         response.css('.byline::text').get() or \
                         response.css('.st-byline::text').get() or \
                         response.css('time::text').get() or \
