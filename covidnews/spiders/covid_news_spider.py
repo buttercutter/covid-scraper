@@ -49,7 +49,9 @@ irrelevant_subdomain_names = ["channelnewsasia.com/watch/", "cnaluxury.channelne
 # articles that are published with only a title, and without any body content and publish date
 incomplete_articles = ["https://www.straitstimes.com/singapore/education/ask-sandra-jc-mergers",
                        "https://www.straitstimes.com/business/economy/askst-what-benefits-did-budget-2016-offer-entrepreneurs-and-single-women",
-                       "https://www.straitstimes.com/singapore/does-getting-zika-infection-once-confer-immunity"]
+                       "https://www.straitstimes.com/singapore/does-getting-zika-infection-once-confer-immunity",
+                       "https://www.straitstimes.com/tags/bhumibol-adulyadej",
+                       "https://www.straitstimes.com/askst/steely-stand-off"]
 
 # Test specific webpages with higher priority
 TEST_SPECIFIC = False
@@ -59,8 +61,7 @@ class CovidNewsSpider(scrapy.Spider):
     name = 'covid_news_spider'
 
     if TEST_SPECIFIC:
-        start_urls = ['https://www.straitstimes.com/business/economy/balancing-the-budget-revenue-expenditure',
-                      "https://www.straitstimes.com/tags/politicians?page=39"]
+        start_urls = ["https://www.straitstimes.com/singapore/parenting-education/st-smart-parenting-read-more-stories"]
 
     else:
         start_urls = [
@@ -298,7 +299,7 @@ class CovidNewsSpider(scrapy.Spider):
                     yield SplashRequest(
                             url,
                             callback=self.get_article_content,
-                            meta={'title': None, 'date': None},  # Pass additional data here, assigned None here for legacy function argument purpose
+                            meta={'title': None, 'date': None, 'article_url': url},  # Pass additional data here, assigned None here for testing purpose
                             endpoint='execute',  # for closing advertising overlay page to get to desired page
                             args={'lua_source': self.js_script_test_specific,
                                   'lua_source_isolated': False,  # for showing self.js_script print() output
@@ -322,11 +323,6 @@ class CovidNewsSpider(scrapy.Spider):
 
         link = response.url
 
-        # For checking if redirected_url is in blacklist
-        redirected_url = response.headers.get('Location')
-        if redirected_url:
-            redirected_url = redirected_url.decode()
-
         # Extract domain name from link
         match = re.search(r'^https?://([\w\.-]+)', link)
         if match:
@@ -334,10 +330,6 @@ class CovidNewsSpider(scrapy.Spider):
             domain_name = domain_name.lstrip('www.')
         else:
             domain_name = None
-
-        if link and redirected_url:
-            print(f"{redirected_url} is redirected from {link}")
-            link = redirected_url
 
         if not link or "javascript" in link or "mailto" in link or "whatsapp://" in link or \
             "play.google.com" in link or "apps.apple.com" in link or \
@@ -410,11 +402,6 @@ class CovidNewsSpider(scrapy.Spider):
             'https://archive.org/stream/' in response.url or \
             'https://archive.org/compress/' in response.url
 
-        # For checking if redirected_url is in blacklist
-        redirected_url = response.headers.get('Location')
-        if redirected_url:
-            redirected_url = redirected_url.decode()
-
         # Extract domain name from link
         match = re.search(r'^https?://([\w\.-]+)', link)
         if match:
@@ -422,10 +409,6 @@ class CovidNewsSpider(scrapy.Spider):
             domain_name = domain_name.lstrip('www.')
         else:
             domain_name = None
-
-        if link and redirected_url:
-            print(f"{redirected_url} is redirected from {link}")
-            link = redirected_url
 
         if not link or "javascript" in link or "mailto" in link or "whatsapp://" in link or \
             "play.google.com" in link or "apps.apple.com" in link or \
@@ -435,7 +418,7 @@ class CovidNewsSpider(scrapy.Spider):
             any(subdomain_name in link for subdomain_name in inaccessible_subdomain_names) or \
             domain_name not in allowed_domain_names:
             # Skip links
-            print(f"skipped {link} or {redirected_url} inside parse() A")
+            print(f"skipped {link} inside parse() A")
 
         else:
             if not INTERNETARCHIVE_FULL_TEXT:
@@ -582,11 +565,6 @@ class CovidNewsSpider(scrapy.Spider):
         if date:
             date = date.strip()  # to remove unnecessary whitespace or newlines characters
 
-        # For checking if redirected_url is in blacklist
-        redirected_url = response.headers.get('Location')
-        if redirected_url:
-            redirected_url = redirected_url.decode()
-
         if link:
             link = self.fix_url(link, response.url)
 
@@ -599,10 +577,6 @@ class CovidNewsSpider(scrapy.Spider):
                 domain_name = None
         else:
             domain_name = None
-
-        if link and redirected_url:
-            print(f"{redirected_url} is redirected from {link}")
-            link = redirected_url
 
         print(f"inside parse_article(), parent_url = {response.url} , article_url = {link} , title = {title}, date = {date}")
 
@@ -623,7 +597,7 @@ class CovidNewsSpider(scrapy.Spider):
             yield SplashRequest(
                 url=article_url,
                 callback=self.get_article_content,
-                meta={'title': title, 'date': date},  # Pass additional data here
+                meta={'title': title, 'date': date, 'article_url': article_url},  # Pass additional data here
                 #endpoint='render.html',  # for non-pure html with javascript
                 endpoint='execute',  # for closing advertising overlay page to get to desired page
                 args={'lua_source': self.js_script, 'adblock': True, 'wait': 0.5, 'resource_timeout': 10},
@@ -637,18 +611,15 @@ class CovidNewsSpider(scrapy.Spider):
         # Access the additional data here
         title = response.meta['title']
         date = response.meta['date']
+        article_url = response.meta['article_url']
 
         link = response.url
 
-        # For checking if redirected_url is in blacklist
-        if TEST_SPECIFIC:
-            redirected_url = response.data['url']  # Access data returned by the Lua "js_script_test_specfic"
+        if article_url != link:
+            print(f"url redirection occurs from {article_url} to {link}")
+            url_had_redirected = True
         else:
-            redirected_url = response.headers.get('Location')
-
-        print(f"redirected_url is {redirected_url} inside get_article_content()")
-        if redirected_url:
-            redirected_url = redirected_url.decode()
+            url_had_redirected = False
 
         # Extract domain name from link
         match = re.search(r'^https?://([\w\.-]+)', link)
@@ -657,10 +628,6 @@ class CovidNewsSpider(scrapy.Spider):
             domain_name = domain_name.lstrip('www.')
         else:
             domain_name = None
-
-        if link and redirected_url:
-            print(f"{redirected_url} is redirected from {link}")
-            link = redirected_url
 
         if 'channelnewsasia' in response.url:
             body = response.xpath('//p[not(@*)]//descendant-or-self::node()/text()').getall()
@@ -717,17 +684,24 @@ class CovidNewsSpider(scrapy.Spider):
 
         else:
             print(f"inside get_article_content(), article_url = {link} , title = {title}, date = {date}, body = {body}")
+            # This is an early sign that the current page after url redirection
+            # is pointing to a new page containing multiple articles
+            # since the scraping css() selector code could not retrieve any date information from article.
+            if url_had_redirected and date is None:
+                    print(f"going back to parse() for {link}")
+                    yield self.parse(response)
 
-            self.write_to_local_data(link, title, body, date, response)
+            else:
+                self.write_to_local_data(link, title, body, date, response)
 
-            yield {
-                'title': title,
-                'link': link,
-                'date': date,
-                'body': body,
-                #'excerpt': article.css('p::text').get(),
-                'source': self.get_source(response)
-            }
+                yield {
+                    'title': title,
+                    'link': link,
+                    'date': date,
+                    'body': body,
+                    #'excerpt': article.css('p::text').get(),
+                    'source': self.get_source(response)
+                }
 
 
     def write_to_local_data(self, link, title, body, date, response):
