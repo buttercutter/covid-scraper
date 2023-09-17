@@ -629,48 +629,6 @@ class CovidNewsSpider(scrapy.Spider):
         else:
             domain_name = None
 
-        if 'channelnewsasia' in response.url:
-            body = response.xpath('//p[not(@*)]//descendant-or-self::node()/text()').getall()
-            body = '\n'.join(body)
-
-            if date is None:
-                date = response.css('.article-publish::text').get() or \
-                        response.css('.article-publish span::text').get()
-
-        elif 'straitstimes' in response.url:
-            body = response.xpath('//p[not(@*)]/text()').getall()
-            body = '\n'.join(body)
-
-            if date is None:
-                print("straitstimes date is None !!!")
-                date = response.css('.group-story-changedate .story-changeddate::text').get() or \
-                        response.css('.group-story-postdate .story-postdate::text').get() or \
-                        response.css('div.story-postdate::text').get() or \
-                        response.css('.byline::text').get() or \
-                        response.css('.st-byline::text').get() or \
-                        response.css('time::text').get() or \
-                        response.css('time::attr(datetime)').get() or \
-                        response.css('.lb24-default-list-item-date::text').get() or \
-                        response.css('time[itemprop="datePublished"]::attr(datetime)').get()
-
-                if response.css('.byline::text').get() is not None and 'PUBLISHED: ' in date:
-                    date = date.split('PUBLISHED: ')[-1]
-
-                if response.css('.st-byline::text').get() is not None and 'Published: ' in date:
-                    date = date.split('Published: ')[-1]
-
-        elif 'archive.org' in response.url:
-            body = response.css('div.article p::text').getall() or \
-                   response.css('div.text-long').getall() or \
-                   response.css('main#maincontent > div.container.container-ia > pre::text').getall()
-            body = '\n'.join(body)
-
-        else:
-            body = None
-
-        if date:
-            date = date.strip()  # to remove unnecessary whitespace or newlines characters
-
         if not link or "javascript" in link or "mailto" in link or "whatsapp://" in link or \
             "play.google.com" in link or "apps.apple.com" in link or \
             any(article_url in link for article_url in incomplete_articles) or \
@@ -683,11 +641,52 @@ class CovidNewsSpider(scrapy.Spider):
             yield None
 
         else:
+            if 'channelnewsasia' in response.url:
+                body = response.xpath('//p[not(@*)]//descendant-or-self::node()/text()').getall()
+                body = '\n'.join(body)
+
+                if date is None:
+                    date = response.css('.article-publish::text').get() or \
+                            response.css('.article-publish span::text').get()
+
+            elif 'straitstimes' in response.url:
+                body = response.xpath('//p[not(@*)]/text()').getall()
+                body = '\n'.join(body)
+
+                if date is None:
+                    print("straitstimes date is None !!!")
+                    date = response.css('.group-story-changedate .story-changeddate::text').get() or \
+                            response.css('.group-story-postdate .story-postdate::text').get() or \
+                            response.css('div.story-postdate::text').get() or \
+                            response.css('.byline::text').get() or \
+                            response.css('.st-byline::text').get() or \
+                            response.css('time::text').get() or \
+                            response.css('time::attr(datetime)').get() or \
+                            response.css('.lb24-default-list-item-date::text').get() or \
+                            response.css('time[itemprop="datePublished"]::attr(datetime)').get()
+
+                    if response.css('.byline::text').get() is not None and 'PUBLISHED: ' in date:
+                        date = date.split('PUBLISHED: ')[-1]
+
+                    if response.css('.st-byline::text').get() is not None and 'Published: ' in date:
+                        date = date.split('Published: ')[-1]
+
+            elif 'archive.org' in response.url:
+                body = response.css('div.article p::text').getall() or \
+                       response.css('div.text-long').getall() or \
+                       response.css('main#maincontent > div.container.container-ia > pre::text').getall()
+                body = '\n'.join(body)
+
+            else:
+                body = None
+
+            if date:
+                date = date.strip()  # to remove unnecessary whitespace or newlines characters
+
             print(f"inside get_article_content(), article_url = {link} , title = {title}, date = {date}, body = {body}")
             # This is an early sign that the current page after url redirection
             # is pointing to a new page containing multiple articles
-            # since the scraping css() selector code could not retrieve any date information from article.
-            if url_had_redirected and date is None:
+            if url_had_redirected and self.parse_articles(response) is not None:
                     print(f"going back to parse() for {link}")
                     yield self.parse(response)
 
