@@ -81,10 +81,11 @@ ROBOTSTXT_OBEY = True
 
 # Enable and configure HTTP caching (disabled by default)
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html#httpcache-middleware-settings
-#HTTPCACHE_ENABLED = True
-#HTTPCACHE_EXPIRATION_SECS = 0
-#HTTPCACHE_DIR = "httpcache"
-#HTTPCACHE_IGNORE_HTTP_CODES = []
+HTTPCACHE_ENABLED = True
+HTTPCACHE_EXPIRATION_SECS = 0
+HTTPCACHE_DIR = "httpcache"
+HTTPCACHE_IGNORE_HTTP_CODES = []
+HTTPCACHE_STORAGE = 'scrapy_splash.SplashAwareFSCacheStorage'
 #HTTPCACHE_STORAGE = "scrapy.extensions.httpcache.FilesystemCacheStorage"
 
 # Set settings whose default value is deprecated to a future-proof value
@@ -104,4 +105,3 @@ SPIDER_MIDDLEWARES = {
 
 SPLASH_URL = 'http://localhost:8050'  # This should be the URL of your Splash server
 DUPEFILTER_CLASS = 'scrapy_splash.SplashAwareDupeFilter'
-HTTPCACHE_STORAGE = 'scrapy_splash.SplashAwareFSCacheStorage'
