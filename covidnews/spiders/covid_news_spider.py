@@ -720,11 +720,11 @@ class CovidNewsSpider(scrapy.Spider):
              any(country in body.lower() for country in search_countries))) and \
             (date_is_within_covid_period):
             # Create a unique filename for each URL by removing the 'http://', replacing '/' with '_', and adding '.html'
-            filename = link.replace('http://', '').replace('/', '_') + '.html'
+            file_parent_directory = ''
+            filename = file_parent_directory + link.replace('http://', '').replace('/', '_') + '.html'
             print("filename = ", filename)
 
             # Write the entire body of the response to a file
-            #with open("/home/phung/covidnews_result/"+filename, 'wb') as f:
             with open(filename, 'wb') as f:
                 f.write(body.encode('utf-8'))
 
