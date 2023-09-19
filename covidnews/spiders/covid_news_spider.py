@@ -716,8 +716,7 @@ class CovidNewsSpider(scrapy.Spider):
         print(f"date = {date}, and published_year = {published_year}, and date_is_within_covid_period = {date_is_within_covid_period}")
 
         if ((title != None and any(keyword in title.lower() for keyword in search_keywords)) or \
-            (body != None and any(keyword in body.lower() for keyword in search_keywords) and \
-             any(country in body.lower() for country in search_countries))) and \
+            (body != None and any(keyword in body.lower() for keyword in search_keywords))) and \
             (date_is_within_covid_period):
             # Create a unique filename for each URL by removing the 'http://', replacing '/' with '_', and adding '.html'
             file_parent_directory = ''
