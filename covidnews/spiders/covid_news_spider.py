@@ -608,6 +608,11 @@ class CovidNewsSpider(scrapy.Spider):
     def remove_photograph_credit(self, text):
         text = re.sub(r"\(Image: .+?\)", "", text)
         text = re.sub(r"\(Photo: .+?\)", "", text)
+        text = re.sub(r"\(Photo by .+?\)", "", text)
+        text = re.sub(r"\(AP Photo .+?\)", "", text)
+        text = re.sub(r"\(File photo: .+?\)", "", text)
+        text = re.sub(r"File photo of .+?", "", text)
+        text = re.sub(r"FILE PHOTO: .+?File Photo", "", text)
         return text
 
     def remove_footnote(self, text):
@@ -619,6 +624,12 @@ class CovidNewsSpider(scrapy.Spider):
             if "join st's telegram channel" in combined_line.lower():
                 return '\n'.join(lines[:i])
             if "join st's whatsapp channel" in combined_line.lower():
+                return '\n'.join(lines[:i])
+            if "download our app" in combined_line.lower():
+                return '\n'.join(lines[:i])
+            if "read this story in" in combined_line.lower():
+                return '\n'.join(lines[:i])
+            if "is an editor at" in combined_line.lower():
                 return '\n'.join(lines[:i])
         return text  # return the original text if no copyright line was found
 
@@ -660,7 +671,8 @@ class CovidNewsSpider(scrapy.Spider):
 
         else:
             if 'channelnewsasia' in response.url:
-                body = response.xpath('//p[not(@*)]//descendant-or-self::node()/text()').getall()
+                #body = response.xpath('//p[not(@*)]//descendant-or-self::node()/text()').getall()
+                body = response.xpath('//p[not(@*) and not(ancestor::figcaption)]/descendant-or-self::node()/text()').getall()
                 body = '\n'.join(body)
 
                 if date is None:
