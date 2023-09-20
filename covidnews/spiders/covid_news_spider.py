@@ -605,6 +605,22 @@ class CovidNewsSpider(scrapy.Spider):
             )
 
 
+    def remove_photograph_credit(self, text):
+        text = re.sub(r"\(Image: .+?\)", "", text)
+        text = re.sub(r"\(Photo: .+?\)", "", text)
+        return text
+
+    def remove_footnote(self, text):
+        lines = text.split('\n')
+        for i in range(len(lines) - 1):
+            combined_line = lines[i].strip() + ' ' + lines[i + 1].strip()
+            if "Copyright© Mediacorp 2023" in combined_line:
+                return '\n'.join(lines[:i])
+            if "Join ST's Telegram channel" in combined_line:
+                return '\n'.join(lines[:i])
+        return text  # return the original text if no copyright line was found
+
+
     def get_article_content(self, response):
         # retrieves article's detailed title and body properly
 
@@ -650,7 +666,8 @@ class CovidNewsSpider(scrapy.Spider):
                             response.css('.article-publish span::text').get()
 
             elif 'straitstimes' in response.url:
-                body = response.xpath('//p[not(@*)]/text()').getall()
+                #body = response.xpath('//p[not(@*)]/text()').getall()
+                body = response.css('p ::text').getall()
                 body = '\n'.join(body)
 
                 if date is None:
@@ -679,6 +696,11 @@ class CovidNewsSpider(scrapy.Spider):
 
             else:
                 body = None
+
+
+            if body:
+                body = self.remove_photograph_credit(body)
+                body = self.remove_footnote(body)
 
             if date:
                 date = date.strip()  # to remove unnecessary whitespace or newlines characters
