@@ -615,22 +615,31 @@ class CovidNewsSpider(scrapy.Spider):
         text = re.sub(r"FILE PHOTO: .+?File Photo", "", text)
         return text
 
+
     def remove_footnote(self, text):
+        # cleans up some strange character
+        text = text.replace('\xa0', ' ')
+
+        # splits into multiple tokens using newline characters
         lines = text.split('\n')
+
         for i in range(len(lines) - 1):
             combined_line = lines[i].strip() + ' ' + lines[i + 1].strip()
-            if "copyright© mediacorp 2023" in combined_line.lower():
+            combined_line = combined_line.lower()
+
+            if "copyright© mediacorp 2023" in combined_line:
                 return '\n'.join(lines[:i])
-            if "join st's telegram channel" in combined_line.lower():
+            if "join st's telegram channel" in combined_line:
                 return '\n'.join(lines[:i])
-            if "join st's whatsapp channel" in combined_line.lower():
+            if "join st's whatsapp channel" in combined_line:
                 return '\n'.join(lines[:i])
-            if "download our app" in combined_line.lower():
+            if "download our app" in combined_line:
                 return '\n'.join(lines[:i])
-            if "read this story in" in combined_line.lower():
+            if "read this story in" in combined_line:
                 return '\n'.join(lines[:i])
-            if "is an editor at" in combined_line.lower():
+            if "is an editor at" in combined_line:
                 return '\n'.join(lines[:i])
+
         return text  # return the original text if no copyright line was found
 
 
