@@ -614,9 +614,11 @@ class CovidNewsSpider(scrapy.Spider):
         lines = text.split('\n')
         for i in range(len(lines) - 1):
             combined_line = lines[i].strip() + ' ' + lines[i + 1].strip()
-            if "Copyright© Mediacorp 2023" in combined_line:
+            if "copyright© mediacorp 2023" in combined_line.lower():
                 return '\n'.join(lines[:i])
-            if "Join ST's Telegram channel" in combined_line:
+            if "join st's telegram channel" in combined_line.lower():
+                return '\n'.join(lines[:i])
+            if "join st's whatsapp channel" in combined_line.lower():
                 return '\n'.join(lines[:i])
         return text  # return the original text if no copyright line was found
 
