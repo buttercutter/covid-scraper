@@ -61,7 +61,14 @@ class CovidNewsSpider(scrapy.Spider):
     name = 'covid_news_spider'
 
     if TEST_SPECIFIC:
-        start_urls = ["https://www.straitstimes.com/singapore/parenting-education/st-smart-parenting-read-more-stories"]
+        start_urls = ["https://www.channelnewsasia.com/commentary/eating-together-family-meal-time-kids-food-diet-obesity-habits-1371551",
+                      "https://www.channelnewsasia.com/singapore/adrian-pang-depression-covid-pandemic-ndp-2022-2820061",
+                      "https://www.channelnewsasia.com/people/singapore-chef-aven-lau-batard-hong-kong-restaurant-1882471",
+                      "https://www.channelnewsasia.com/singapore/toiletries-prices-pharmacies-retail-venus-beauty-language-2395661",
+                      "https://www.straitstimes.com/sport/formula-one/two-new-grandstands-added-to-formula-one-singapore-grand-prix-for-2023",
+                      "https://www.straitstimes.com/business/invest/how-human-led-tech-powered-wealth-advice-can-help-you-beat-market-volatility",
+                      "https://www.straitstimes.com/singapore/transport/construction-of-jb-singapore-rts-link-on-s-pore-side-has-reached-halfway-mark-iswaran",
+                      "https://www.straitstimes.com/singapore/maliki-s-hari-raya-visit-to-brunei-reflects-close-bilateral-ties-between-the-two-nations-mfa"]
 
     else:
         start_urls = [
@@ -324,10 +331,10 @@ class CovidNewsSpider(scrapy.Spider):
         link = response.url
 
         # Extract domain name from link
-        match = re.search(r'^https?://([\w\.-]+)', link)
+        match = re.search(r'^https?://([^/:]+)', link)  # The colon is used as a stopping criterion to account for URLs that include a port number.
         if match:
-            domain_name = match.group(1)
-            domain_name = domain_name.lstrip('www.')
+            domain_parts = match.group(1).split('.')
+            domain_name = '.'.join(domain_parts[-2:])  # This gives the main domain, regardless of how many levels of subdomains
         else:
             domain_name = None
 
@@ -403,10 +410,10 @@ class CovidNewsSpider(scrapy.Spider):
             'https://archive.org/compress/' in response.url
 
         # Extract domain name from link
-        match = re.search(r'^https?://([\w\.-]+)', link)
+        match = re.search(r'^https?://([^/:]+)', link)  # The colon is used as a stopping criterion to account for URLs that include a port number.
         if match:
-            domain_name = match.group(1)
-            domain_name = domain_name.lstrip('www.')
+            domain_parts = match.group(1).split('.')
+            domain_name = '.'.join(domain_parts[-2:])  # This gives the main domain, regardless of how many levels of subdomains
         else:
             domain_name = None
 
@@ -461,10 +468,10 @@ class CovidNewsSpider(scrapy.Spider):
                 link = next_page_url
 
                 # Extract domain name from link
-                match = re.search(r'^https?://([\w\.-]+)', link)
+                match = re.search(r'^https?://([^/:]+)', link)  # The colon is used as a stopping criterion to account for URLs that include a port number.
                 if match:
-                    domain_name = match.group(1)
-                    domain_name = domain_name.lstrip('www.')
+                    domain_parts = match.group(1).split('.')
+                    domain_name = '.'.join(domain_parts[-2:])  # This gives the main domain, regardless of how many levels of subdomains
                 else:
                     domain_name = None
 
@@ -569,12 +576,13 @@ class CovidNewsSpider(scrapy.Spider):
             link = self.fix_url(link, response.url)
 
             # Extract domain name from link
-            match = re.search(r'^https?://([\w\.-]+)', link)
+            match = re.search(r'^https?://([^/:]+)', link)  # The colon is used as a stopping criterion to account for URLs that include a port number.
             if match:
-                domain_name = match.group(1)
-                domain_name = domain_name.lstrip('www.')
+                domain_parts = match.group(1).split('.')
+                domain_name = '.'.join(domain_parts[-2:])  # This gives the main domain, regardless of how many levels of subdomains
             else:
                 domain_name = None
+
         else:
             domain_name = None
 
@@ -660,10 +668,10 @@ class CovidNewsSpider(scrapy.Spider):
             url_had_redirected = False
 
         # Extract domain name from link
-        match = re.search(r'^https?://([\w\.-]+)', link)
+        match = re.search(r'^https?://([^/:]+)', link)  # The colon is used as a stopping criterion to account for URLs that include a port number.
         if match:
-            domain_name = match.group(1)
-            domain_name = domain_name.lstrip('www.')
+            domain_parts = match.group(1).split('.')
+            domain_name = '.'.join(domain_parts[-2:])  # This gives the main domain, regardless of how many levels of subdomains
         else:
             domain_name = None
 
@@ -690,7 +698,7 @@ class CovidNewsSpider(scrapy.Spider):
 
             elif 'straitstimes' in response.url:
                 #body = response.xpath('//p[not(@*)]/text()').getall()
-                body = response.css('p ::text').getall()
+                body = response.css('p ::text, h2:not(.visually-hidden)::text').getall()
                 body = '\n'.join(body)
 
                 if date is None:
