@@ -42,6 +42,7 @@ inaccessible_subdomain_names = ["olympianbuilder.straitstimes.com", "ststaff.str
 irrelevant_subdomain_names = ["channelnewsasia.com/watch/", "cnaluxury.channelnewsasia.com",
                               "straitstimes.com/multimedia/graphics/", "graphics.straitstimes.com/",
                               "cnalifestyle.channelnewsasia.com/interactives/", "channelnewsasia.com/video",
+                              "cnalifestyle.channelnewsasia.com/brandstudio/",
                               "straitstimes.com/video", "channelnewsasia.com/listen/",
                               "channelnewsasia.com/author", "straitstimes.com/author",
                               "channelnewsasia.com/about-us"]
@@ -689,7 +690,7 @@ class CovidNewsSpider(scrapy.Spider):
         else:
             if 'channelnewsasia' in response.url:
                 #body = response.xpath('//p[not(@*)]//descendant-or-self::node()/text()').getall()
-                body = response.xpath('//p[not(@*) and not(ancestor::figcaption)]/descendant-or-self::node()/text()').getall()
+                body = response.xpath('//blockquote//p//text() | //p[not(@*) and not(ancestor::figcaption)]/descendant-or-self::node()/text() | //p[last() and ancestor-or-self::div[@class="text"]]//text() | (//p)[last()]//em/descendant-or-self::node()/text() | //ul/li[not(@*)]/span[not(@*)]/span[not(@*)]/text()').getall()
                 body = '\n'.join(body)
 
                 if date is None:
@@ -732,6 +733,7 @@ class CovidNewsSpider(scrapy.Spider):
             if body:
                 body = self.remove_photograph_credit(body)
                 body = self.remove_footnote(body)
+                body = body.strip()
 
             if date:
                 date = date.strip()  # to remove unnecessary whitespace or newlines characters
