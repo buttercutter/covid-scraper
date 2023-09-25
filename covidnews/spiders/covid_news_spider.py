@@ -6,6 +6,8 @@ import re
 from urllib.parse import urlparse, urlunparse
 from dateutil.parser import parse
 
+from collections import OrderedDict
+
 # For http://web.archive.org/
 import internetarchive
 import requests
@@ -691,7 +693,6 @@ class CovidNewsSpider(scrapy.Spider):
             if 'channelnewsasia' in response.url:
                 #body = response.xpath('//p[not(@*)]//descendant-or-self::node()/text()').getall()
                 body = response.xpath('//blockquote//p//text() | //p[not(@*) and not(ancestor::figcaption)]/descendant-or-self::node()/text() | //p[last() and ancestor-or-self::div[@class="text"]]//text() | (//p)[last()]//em/descendant-or-self::node()/text() | //ul/li[not(@*)]/span[not(@*)]/span[not(@*)]/text()').getall()
-                body = '\n'.join(body)
 
                 if date is None:
                     date = response.css('.article-publish::text').get() or \
@@ -700,7 +701,6 @@ class CovidNewsSpider(scrapy.Spider):
             elif 'straitstimes' in response.url:
                 #body = response.xpath('//p[not(@*)]/text()').getall()
                 body = response.css('p ::text, h2:not(.visually-hidden)::text').getall()
-                body = '\n'.join(body)
 
                 if date is None:
                     print("straitstimes date is None !!!")
@@ -724,16 +724,20 @@ class CovidNewsSpider(scrapy.Spider):
                 body = response.css('div.article p::text').getall() or \
                        response.css('div.text-long').getall() or \
                        response.css('main#maincontent > div.container.container-ia > pre::text').getall()
-                body = '\n'.join(body)
 
             else:
                 body = None
 
 
             if body:
+                # This will remove duplicates while preserving the original order of elements.
+                body = list(OrderedDict.fromkeys(body))
+                body = [s.strip() for s in body]
+                body = '\n'.join(body)
+                body = body.strip()
+
                 body = self.remove_photograph_credit(body)
                 body = self.remove_footnote(body)
-                body = body.strip()
 
             if date:
                 date = date.strip()  # to remove unnecessary whitespace or newlines characters
