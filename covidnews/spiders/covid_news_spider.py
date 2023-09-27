@@ -627,31 +627,80 @@ class CovidNewsSpider(scrapy.Spider):
         return text
 
 
-    def remove_footnote(self, text):
+    def remove_footnote(self, text, window_size=3):
         # cleans up some strange character
         text = text.replace('\xa0', ' ')
 
         # splits into multiple tokens using newline characters
         lines = text.split('\n')
+        lines = [l.strip() for l in lines]
 
-        for i in range(len(lines) - 1):
-            combined_line = lines[i].strip() + ' ' + lines[i + 1].strip()
-            combined_line = combined_line.lower()
+        # list of phrases to search for
+        search_phrases = [
+            "copyright© mediacorp 2023",
+            "join st's telegram channel",
+            "join st's whatsapp channel",
+            "download our app",
+            "read this story in",
+            "is an editor at"
+        ]
 
-            if "copyright© mediacorp 2023" in combined_line:
-                return '\n'.join(lines[:i])
-            if "join st's telegram channel" in combined_line:
-                return '\n'.join(lines[:i])
-            if "join st's whatsapp channel" in combined_line:
-                return '\n'.join(lines[:i])
-            if "download our app" in combined_line:
-                return '\n'.join(lines[:i])
-            if "read this story in" in combined_line:
-                return '\n'.join(lines[:i])
-            if "is an editor at" in combined_line:
-                return '\n'.join(lines[:i])
+        # Initialize an empty buffer
+        buffer = []
 
-        return text  # return the original text if no copyright line was found
+        for i, line in enumerate(lines):
+            # add line to buffer
+            buffer.append(line)
+
+            # ensure buffer doesn't exceed window size
+            if len(buffer) > window_size:
+                buffer.pop(0)
+
+            print(f"inside remove_footnote(), buffer = {buffer}, i = {i}")
+
+            # Check if phrases are in the buffer
+            buffer_string = ' '.join(buffer).lower()
+            for phrase in search_phrases:
+
+                if phrase in buffer_string:
+                    # Find the position of the phrase in the buffer string
+                    phrase_start = buffer_string.find(phrase)
+                    phrase_end = phrase_start + len(phrase)
+                    print(f"inside remove_footnote(), phrase_start = {phrase_start}, phrase_end = {phrase_end}")
+
+                    # Determine which lines those positions correspond to in the buffer
+                    line_lengths = [len(line) + 1 for line in buffer]  # +1 for '\n'
+                    line_start_positions = [sum(line_lengths[:i]) for i in range(len(buffer))]
+                    line_end_positions = [sum(line_lengths[:i+1]) for i in range(len(buffer))]
+                    print(f"inside remove_footnote(), line_lengths = {line_lengths}, line_start_positions = {line_start_positions}, line_end_positions = {line_end_positions}")
+
+                    # Remove all lines that are part of the phrase
+                    for start, end in reversed(list(zip(line_start_positions, line_end_positions))):
+                        if start <= phrase_start < end or start < phrase_end <= end:
+                            if buffer:  # Check if buffer is not empty before popping
+                                buffer.pop(line_start_positions.index(start))
+                                print(f"inside remove_footnote(), after pop(), buffer = {buffer}")
+                            else:
+                                break
+
+                        else:
+                            # Replace lines in the original text with the modified buffer
+                            print(f"inside remove_footnote(), before cleaning the footnote phrase, lines[{i-window_size+1}:{i-window_size+len(buffer)+1}] = {lines[i-window_size:i-window_size+len(buffer)+1]}")
+                            lines[i-window_size+1:i-window_size+len(buffer)+1] = buffer
+                            print(f"inside remove_footnote(), after cleaning the footnote phrase, lines[{i-window_size+1}:{i-window_size+len(buffer)+1}] = {lines[i-window_size+1:i-window_size+len(buffer)+1]}")
+
+                            # Remove all subsequent text after footnote phrase
+                            print(f"inside remove_footnote(), before cleaning the subsequent text, lines[{i-window_size+len(buffer)+1}:] = {lines[i-window_size+len(buffer)+1:]}")
+                            lines[i-window_size+len(buffer)+1:] = ''
+                            print(f"inside remove_footnote(), after cleaning the subsequent text, lines[{i-window_size+len(buffer)+1}:] = {lines[i-window_size+len(buffer)+1:]}")
+
+                            # Join the lines back into a single string
+                            cleaned_text = "\n".join(lines)
+                            print(f"inside remove_footnote(), cleaned_text = {cleaned_text}")
+                            return cleaned_text
+
+        # return the original text if no footnote was found
+        return text
 
 
     def get_article_content(self, response):
@@ -693,7 +742,6 @@ class CovidNewsSpider(scrapy.Spider):
             if 'channelnewsasia' in response.url:
                 #body = response.xpath('//p[not(@*)]//descendant-or-self::node()/text()').getall()
                 body = response.xpath('//blockquote//p//text() | //p[not(@*) and not(ancestor::figcaption)]/descendant-or-self::node()/text() | //p[last() and ancestor-or-self::div[@class="text"]]//text() | (//p)[last()]//em/descendant-or-self::node()/text() | //ul/li[not(@*)]/span[not(@*)]/span[not(@*)]/text()').getall()
-
                 if date is None:
                     date = response.css('.article-publish::text').get() or \
                             response.css('.article-publish span::text').get()
