@@ -16,8 +16,8 @@ import requests
 #search_keywords = ['covid','virus','pandemic','vaccine','corona','vaccination','circuit breaker','SARS-CoV-2']
 search_keywords = ['covid','pandemic','vaccine','coronavirus','vaccination','SARS-CoV-2']
 
-# Define preferred search countries scope
-search_countries = ['Singapore']
+# Define preferred search country scope
+search_country = 'singapore'
 
 # Whether to brute-force search across the entire website hierarchy, due to robots.txt restriction
 SEARCH_ENTIRE_WEBSITE = 1
@@ -64,23 +64,20 @@ class CovidNewsSpider(scrapy.Spider):
     name = 'covid_news_spider'
 
     if TEST_SPECIFIC:
-        start_urls = ["https://www.channelnewsasia.com/commentary/eating-together-family-meal-time-kids-food-diet-obesity-habits-1371551",
-                      "https://www.channelnewsasia.com/singapore/adrian-pang-depression-covid-pandemic-ndp-2022-2820061",
-                      "https://www.channelnewsasia.com/people/singapore-chef-aven-lau-batard-hong-kong-restaurant-1882471",
-                      "https://www.channelnewsasia.com/singapore/toiletries-prices-pharmacies-retail-venus-beauty-language-2395661",
-                      "https://www.straitstimes.com/sport/formula-one/two-new-grandstands-added-to-formula-one-singapore-grand-prix-for-2023",
+        start_urls = ["https://www.straitstimes.com/sport/formula-one/two-new-grandstands-added-to-formula-one-singapore-grand-prix-for-2023",
                       "https://www.straitstimes.com/business/invest/how-human-led-tech-powered-wealth-advice-can-help-you-beat-market-volatility",
-                      "https://www.straitstimes.com/singapore/transport/construction-of-jb-singapore-rts-link-on-s-pore-side-has-reached-halfway-mark-iswaran",
                       "https://www.straitstimes.com/singapore/maliki-s-hari-raya-visit-to-brunei-reflects-close-bilateral-ties-between-the-two-nations-mfa"]
 
     else:
-        start_urls = [
-            #'https://web.archive.org/',
-            'https://www.straitstimes.com/',
-            'https://www.channelnewsasia.com/'
-            #'https://www.channelnewsasia.com/search?q=covid'  # [scrapy.downloadermiddlewares.robotstxt] DEBUG: Forbidden by robots.txt:
-            #'https://www.straitstimes.com/search?searchkey=covid'  # Forbidden by https://www.straitstimes.com/robots.txt
-        ]
+        if search_country == 'singapore':
+            start_urls = [
+                #'https://web.archive.org/',
+                'https://www.straitstimes.com/',
+                'https://www.channelnewsasia.com/'
+                #'https://www.channelnewsasia.com/search?q=covid'  # [scrapy.downloadermiddlewares.robotstxt] DEBUG: Forbidden by robots.txt:
+                #'https://www.straitstimes.com/search?searchkey=covid'  # Forbidden by https://www.straitstimes.com/robots.txt
+            ]
+
 
     custom_settings = {
         'DOWNLOADER_MIDDLEWARES': {
@@ -637,12 +634,15 @@ class CovidNewsSpider(scrapy.Spider):
 
         # list of phrases to search for
         search_phrases = [
-            "copyright© mediacorp 2023",
             "join st's telegram channel",
             "join st's whatsapp channel",
             "download our app",
             "read this story in",
-            "is an editor at"
+            "is an editor at",
+            "is associate fellow",
+            "is a phd candidate",
+            "is a doctoral candidate",
+            "copyright© mediacorp 2023"
         ]
 
         # Initialize an empty buffer
