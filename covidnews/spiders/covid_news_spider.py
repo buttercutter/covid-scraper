@@ -18,6 +18,7 @@ search_keywords = ['covid','pandemic','vaccine','coronavirus','vaccination','SAR
 
 # Define preferred search country scope
 search_country = 'singapore'
+#search_country = 'philippines'
 
 # Whether to brute-force search across the entire website hierarchy, due to robots.txt restriction
 SEARCH_ENTIRE_WEBSITE = 1
@@ -30,7 +31,7 @@ excluded_file_extensions = [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".pdf", ".x
                             ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".zip"]
 
 # Only parses URLs within these domains
-allowed_domain_names = ["archive.org", "straitstimes.com", "channelnewsasia.com"]
+allowed_domain_names = ["archive.org", "straitstimes.com", "channelnewsasia.com", "mb.com.ph"]
 
 # not accessible due to DNA lookup error or the webpage had since migrated to other subdomains
 inaccessible_subdomain_names = ["olympianbuilder.straitstimes.com", "ststaff.straitstimes.com", "media.straitstimes.com",
@@ -56,6 +57,10 @@ incomplete_articles = ["https://www.straitstimes.com/singapore/education/ask-san
                        "https://www.straitstimes.com/tags/bhumibol-adulyadej",
                        "https://www.straitstimes.com/askst/steely-stand-off"]
 
+
+# subdomain_1.subdomain_2.domain.com.eu , 3 if excluding subdomains
+MAX_NUM_OF_DOMAIN_TEXT = 3
+
 # Test specific webpages with higher priority
 TEST_SPECIFIC = False
 
@@ -76,6 +81,14 @@ class CovidNewsSpider(scrapy.Spider):
                 'https://www.channelnewsasia.com/'
                 #'https://www.channelnewsasia.com/search?q=covid'  # [scrapy.downloadermiddlewares.robotstxt] DEBUG: Forbidden by robots.txt:
                 #'https://www.straitstimes.com/search?searchkey=covid'  # Forbidden by https://www.straitstimes.com/robots.txt
+            ]
+
+        elif search_country == 'philippines':
+            start_urls = [
+                #'https://www.pna.gov.ph/',  # webite server seems to block scraping activity
+                #'https://www.manilatimes.net/search?query=covid',  # forbidden by the /search rule in robots.txt
+                #'https://www.manilatimes.net/',  # almost all articles requires digital subscription fees
+                'https://mb.com.ph/search-results?s=covid'
             ]
 
 
@@ -328,13 +341,13 @@ class CovidNewsSpider(scrapy.Spider):
     def get_next_pages(self, response):
         print("inside get_next_pages(), response.url = ", response.url)
 
-        link = response.url
+        link = response.url.lower()
 
         # Extract domain name from link
         match = re.search(r'^https?://([^/:]+)', link)  # The colon is used as a stopping criterion to account for URLs that include a port number.
         if match:
             domain_parts = match.group(1).split('.')
-            domain_name = '.'.join(domain_parts[-2:])  # This gives the main domain, regardless of how many levels of subdomains
+            domain_name = '.'.join(domain_parts[-MAX_NUM_OF_DOMAIN_TEXT:])  # This gives the main domain, regardless of how many levels of subdomains
         else:
             domain_name = None
 
@@ -361,6 +374,12 @@ class CovidNewsSpider(scrapy.Spider):
                 #more_links = response.css('div.queryly_item_row a::attr(href), a:contains("More")::attr(href), a.stretched-link::attr(href)').getall()
                 #more_links = response.css('div.queryly_item_row > a::attr(href)').getall()
                 more_links = response.css('a:contains("Next Page")::attr(href)').get()
+
+        elif 'mb.com.ph' in response.url:
+            more_links = response.css('a::attr(href)').getall()
+
+            # need to figure out how to click the "MORE+" button, and then execute the css() selector code again
+            #more_links = response.css('.mb-font-more-button::text').get()
 
         elif 'archive.org' in response.url:
             more_links = response.css('a.format-summary:contains("FULL TEXT")::attr(href)').getall()
@@ -402,7 +421,7 @@ class CovidNewsSpider(scrapy.Spider):
 
     def parse(self, response):
         articles = None
-        link = response.url
+        link = response.url.lower()
         print("inside parse(), response.url = ", response.url)
 
         INTERNETARCHIVE_FULL_TEXT = \
@@ -413,7 +432,7 @@ class CovidNewsSpider(scrapy.Spider):
         match = re.search(r'^https?://([^/:]+)', link)  # The colon is used as a stopping criterion to account for URLs that include a port number.
         if match:
             domain_parts = match.group(1).split('.')
-            domain_name = '.'.join(domain_parts[-2:])  # This gives the main domain, regardless of how many levels of subdomains
+            domain_name = '.'.join(domain_parts[-MAX_NUM_OF_DOMAIN_TEXT:])  # This gives the main domain, regardless of how many levels of subdomains
         else:
             domain_name = None
 
@@ -465,13 +484,13 @@ class CovidNewsSpider(scrapy.Spider):
 
         for next_page_url in next_pages_url:
             if next_page_url:
-                link = next_page_url
+                link = next_page_url.lower()
 
                 # Extract domain name from link
                 match = re.search(r'^https?://([^/:]+)', link)  # The colon is used as a stopping criterion to account for URLs that include a port number.
                 if match:
                     domain_parts = match.group(1).split('.')
-                    domain_name = '.'.join(domain_parts[-2:])  # This gives the main domain, regardless of how many levels of subdomains
+                    domain_name = '.'.join(domain_parts[-MAX_NUM_OF_DOMAIN_TEXT:])  # This gives the main domain, regardless of how many levels of subdomains
                 else:
                     domain_name = None
 
@@ -514,6 +533,9 @@ class CovidNewsSpider(scrapy.Spider):
             return response.css('div.card-body')
             #return response.css('div.queryly_item_row')
 
+        elif 'mb.com.ph' in response.url:
+            return response.css('.mb-font-article-title')
+
         elif 'archive.org' in response.url:
             if 'https://archive.org/details/' in response.url:
                 # Extract article (only the FULL_TEXT download page) from the summary page
@@ -530,6 +552,8 @@ class CovidNewsSpider(scrapy.Spider):
             return 'CNA'
         elif 'straitstimes' in response.url:
             return 'ST'
+        elif 'mb.com.ph' in response.url:
+            return 'MB'
         elif 'archive.org' in response.url:
             return 'archive'
 
@@ -558,6 +582,9 @@ class CovidNewsSpider(scrapy.Spider):
 
             link = article.css('a::attr(href)').get()
 
+        elif 'mb.com.ph' in response.url:
+
+
         elif 'archive.org' in response.url:
             title = article.css('title::text').get()
             date = article.xpath('//meta[@name="date"]/@content').get()
@@ -574,12 +601,13 @@ class CovidNewsSpider(scrapy.Spider):
 
         if link:
             link = self.fix_url(link, response.url)
+            link = link.lower()
 
             # Extract domain name from link
             match = re.search(r'^https?://([^/:]+)', link)  # The colon is used as a stopping criterion to account for URLs that include a port number.
             if match:
                 domain_parts = match.group(1).split('.')
-                domain_name = '.'.join(domain_parts[-2:])  # This gives the main domain, regardless of how many levels of subdomains
+                domain_name = '.'.join(domain_parts[-MAX_NUM_OF_DOMAIN_TEXT:])  # This gives the main domain, regardless of how many levels of subdomains
             else:
                 domain_name = None
 
@@ -711,7 +739,7 @@ class CovidNewsSpider(scrapy.Spider):
         date = response.meta['date']
         article_url = response.meta['article_url']
 
-        link = response.url
+        link = response.url.lower()
 
         if article_url != link:
             print(f"url redirection occurs from {article_url} to {link}")
@@ -723,7 +751,7 @@ class CovidNewsSpider(scrapy.Spider):
         match = re.search(r'^https?://([^/:]+)', link)  # The colon is used as a stopping criterion to account for URLs that include a port number.
         if match:
             domain_parts = match.group(1).split('.')
-            domain_name = '.'.join(domain_parts[-2:])  # This gives the main domain, regardless of how many levels of subdomains
+            domain_name = '.'.join(domain_parts[-MAX_NUM_OF_DOMAIN_TEXT:])  # This gives the main domain, regardless of how many levels of subdomains
         else:
             domain_name = None
 
@@ -767,6 +795,9 @@ class CovidNewsSpider(scrapy.Spider):
 
                     if response.css('.st-byline::text').get() is not None and 'Published: ' in date:
                         date = date.split('Published: ')[-1]
+
+            elif 'mb.com.ph' in response.url:
+
 
             elif 'archive.org' in response.url:
                 body = response.css('div.article p::text').getall() or \
