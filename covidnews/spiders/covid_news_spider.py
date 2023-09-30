@@ -12,6 +12,10 @@ from collections import OrderedDict
 import internetarchive
 import requests
 
+# For domain name
+import tldextract
+
+
 # Define preferred search keywords
 #search_keywords = ['covid','virus','pandemic','vaccine','corona','vaccination','circuit breaker','SARS-CoV-2']
 search_keywords = ['covid','pandemic','vaccine','coronavirus','vaccination','SARS-CoV-2']
@@ -338,18 +342,21 @@ class CovidNewsSpider(scrapy.Spider):
                             headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
                         )
 
+
+    def extract_domain_name(self, link):
+        extracted = tldextract.extract(link)
+
+        # Concatenates the domain and the suffix (TLD)
+        domain_name = f"{extracted.domain}.{extracted.suffix}"
+        return domain_name
+
+
     def get_next_pages(self, response):
         print("inside get_next_pages(), response.url = ", response.url)
 
         link = response.url.lower()
 
-        # Extract domain name from link
-        match = re.search(r'^https?://([^/:]+)', link)  # The colon is used as a stopping criterion to account for URLs that include a port number.
-        if match:
-            domain_parts = match.group(1).split('.')
-            domain_name = '.'.join(domain_parts[-MAX_NUM_OF_DOMAIN_TEXT:])  # This gives the main domain, regardless of how many levels of subdomains
-        else:
-            domain_name = None
+        domain_name = self.extract_domain_name(link)
 
         if not link or "javascript" in link or "mailto" in link or "whatsapp://" in link or \
             "play.google.com" in link or "apps.apple.com" in link or \
@@ -428,13 +435,7 @@ class CovidNewsSpider(scrapy.Spider):
             'https://archive.org/stream/' in response.url or \
             'https://archive.org/compress/' in response.url
 
-        # Extract domain name from link
-        match = re.search(r'^https?://([^/:]+)', link)  # The colon is used as a stopping criterion to account for URLs that include a port number.
-        if match:
-            domain_parts = match.group(1).split('.')
-            domain_name = '.'.join(domain_parts[-MAX_NUM_OF_DOMAIN_TEXT:])  # This gives the main domain, regardless of how many levels of subdomains
-        else:
-            domain_name = None
+        domain_name = self.extract_domain_name(link)
 
         if not link or "javascript" in link or "mailto" in link or "whatsapp://" in link or \
             "play.google.com" in link or "apps.apple.com" in link or \
@@ -485,14 +486,7 @@ class CovidNewsSpider(scrapy.Spider):
         for next_page_url in next_pages_url:
             if next_page_url:
                 link = next_page_url.lower()
-
-                # Extract domain name from link
-                match = re.search(r'^https?://([^/:]+)', link)  # The colon is used as a stopping criterion to account for URLs that include a port number.
-                if match:
-                    domain_parts = match.group(1).split('.')
-                    domain_name = '.'.join(domain_parts[-MAX_NUM_OF_DOMAIN_TEXT:])  # This gives the main domain, regardless of how many levels of subdomains
-                else:
-                    domain_name = None
+                domain_name = self.extract_domain_name(link)
 
                 if "javascript" in link or "mailto" in link or "whatsapp://" in link or \
                     "play.google.com" in link or "apps.apple.com" in link or \
@@ -583,7 +577,12 @@ class CovidNewsSpider(scrapy.Spider):
             link = article.css('a::attr(href)').get()
 
         elif 'mb.com.ph' in response.url:
+            title = article.css('h5.card-title a::text').get()
+            date = article.css('time::text').get() or \
+                    article.css('time::attr(datetime)').get() or \
+                    article.css('.story-postdate::text').get()
 
+            link = article.css('a::attr(href)').get()
 
         elif 'archive.org' in response.url:
             title = article.css('title::text').get()
@@ -602,15 +601,7 @@ class CovidNewsSpider(scrapy.Spider):
         if link:
             link = self.fix_url(link, response.url)
             link = link.lower()
-
-            # Extract domain name from link
-            match = re.search(r'^https?://([^/:]+)', link)  # The colon is used as a stopping criterion to account for URLs that include a port number.
-            if match:
-                domain_parts = match.group(1).split('.')
-                domain_name = '.'.join(domain_parts[-MAX_NUM_OF_DOMAIN_TEXT:])  # This gives the main domain, regardless of how many levels of subdomains
-            else:
-                domain_name = None
-
+            domain_name = self.extract_domain_name(link)
         else:
             domain_name = None
 
@@ -740,20 +731,13 @@ class CovidNewsSpider(scrapy.Spider):
         article_url = response.meta['article_url']
 
         link = response.url.lower()
+        domain_name = self.extract_domain_name(link)
 
         if article_url != link:
             print(f"url redirection occurs from {article_url} to {link}")
             url_had_redirected = True
         else:
             url_had_redirected = False
-
-        # Extract domain name from link
-        match = re.search(r'^https?://([^/:]+)', link)  # The colon is used as a stopping criterion to account for URLs that include a port number.
-        if match:
-            domain_parts = match.group(1).split('.')
-            domain_name = '.'.join(domain_parts[-MAX_NUM_OF_DOMAIN_TEXT:])  # This gives the main domain, regardless of how many levels of subdomains
-        else:
-            domain_name = None
 
         if not link or "javascript" in link or "mailto" in link or "whatsapp://" in link or \
             "play.google.com" in link or "apps.apple.com" in link or \
@@ -797,7 +781,9 @@ class CovidNewsSpider(scrapy.Spider):
                         date = date.split('Published: ')[-1]
 
             elif 'mb.com.ph' in response.url:
-
+                body = response.css('div.article p::text').getall() or \
+                       response.css('div.text-long').getall() or \
+                       response.css('main#maincontent > div.container.container-ia > pre::text').getall()
 
             elif 'archive.org' in response.url:
                 body = response.css('div.article p::text').getall() or \
