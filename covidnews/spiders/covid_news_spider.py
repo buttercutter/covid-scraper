@@ -388,6 +388,7 @@ class CovidNewsSpider(scrapy.Spider):
 
             # need to figure out how to click the "MORE+" button, and then execute the css() selector code again
             #more_links = response.css('.mb-font-more-button::text').get()
+            return None
 
         elif 'archive.org' in response.url:
             more_links = response.css('a.format-summary:contains("FULL TEXT")::attr(href)').getall()
@@ -529,7 +530,7 @@ class CovidNewsSpider(scrapy.Spider):
             #return response.css('div.queryly_item_row')
 
         elif 'mb.com.ph' in response.url:
-            return response.css('.mb-font-article-title')
+            return response.css('div.row.mb-16')
 
         elif 'archive.org' in response.url:
             if 'https://archive.org/details/' in response.url:
@@ -578,10 +579,8 @@ class CovidNewsSpider(scrapy.Spider):
             link = article.css('a::attr(href)').get()
 
         elif 'mb.com.ph' in response.url:
-            title = article.css('h5.card-title a::text').get()
-            date = article.css('time::text').get() or \
-                    article.css('time::attr(datetime)').get() or \
-                    article.css('.story-postdate::text').get()
+            title = article.css('.mb-font-article-title a::text').get()
+            date = article.css('.mb-font-article-date::text').get()
 
             link = article.css('a::attr(href)').get()
 
@@ -662,6 +661,8 @@ class CovidNewsSpider(scrapy.Spider):
             "is associate fellow",
             "is a phd candidate",
             "is a doctoral candidate",
+            "is a lecturer",
+            "is a senior lecturer",
             "this article originally appear",
             "© 2023 the new york times",
             "cna women is a section on cna",
@@ -786,9 +787,9 @@ class CovidNewsSpider(scrapy.Spider):
                         date = date.split('Published: ')[-1]
 
             elif 'mb.com.ph' in response.url:
-                body = response.css('div.article p::text').getall() or \
-                       response.css('div.text-long').getall() or \
-                       response.css('main#maincontent > div.container.container-ia > pre::text').getall()
+                body = response.css('p ::text').getall()
+                if date is None:
+                    print("mb.com.ph date is None !!!")
 
             elif 'archive.org' in response.url:
                 body = response.css('div.article p::text').getall() or \
@@ -833,8 +834,11 @@ class CovidNewsSpider(scrapy.Spider):
 
 
     def write_to_local_data(self, link, title, body, date, response):
-        if "hour ago" in date.lower() or "hours ago" in date.lower() or \
+        if "day ago" in date.lower() or "days ago" in date.lower() or \
+            "hour ago" in date.lower() or "hours ago" in date.lower() or \
+            "minute ago" in date.lower() or "minutes ago" in date.lower() or \
             "min ago" in date.lower() or "mins ago" in date.lower() or \
+            "second ago" in date.lower() or "seconds ago" in date.lower() or \
             "sec ago" in date.lower() or "secs ago" in date.lower():
             published_year = 2023
         else:
