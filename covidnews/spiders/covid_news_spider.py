@@ -43,7 +43,7 @@ inaccessible_subdomain_names = ["olympianbuilder.straitstimes.com", "ststaff.str
                                 "stcommunities.straitstimes.com", "euro2016.straitstimes.com",
                                 "awsstaff.straitstimes.com", "eee.straitstimes.com",
                                 "prdstaff.straitstimes.com", "staff.straitstimes.com",
-                                "articles.stclassifieds.sg"]
+                                "stompcms.straitstimes.com"]
 
 # these subdomains contains irrelevant contents for text-based media article scraping
 irrelevant_subdomain_names = ["channelnewsasia.com/watch/", "cnaluxury.channelnewsasia.com",
@@ -59,7 +59,8 @@ incomplete_articles = ["https://www.straitstimes.com/singapore/education/ask-san
                        "https://www.straitstimes.com/business/economy/askst-what-benefits-did-budget-2016-offer-entrepreneurs-and-single-women",
                        "https://www.straitstimes.com/singapore/does-getting-zika-infection-once-confer-immunity",
                        "https://www.straitstimes.com/tags/bhumibol-adulyadej",
-                       "https://www.straitstimes.com/askst/steely-stand-off"]
+                       "https://www.straitstimes.com/askst/steely-stand-off",
+                       "https://www.straitstimes.com/singapore/environment/askst-is-it-safe-to-eat-spinach-leaves-which-have-white-spots-on-them"]
 
 
 # subdomain_1.subdomain_2.domain.com.eu , 3 if excluding subdomains
@@ -74,8 +75,8 @@ class CovidNewsSpider(scrapy.Spider):
 
     if TEST_SPECIFIC:
         start_urls = ["https://www.straitstimes.com/sport/formula-one/two-new-grandstands-added-to-formula-one-singapore-grand-prix-for-2023",
-                      "https://www.straitstimes.com/business/invest/how-human-led-tech-powered-wealth-advice-can-help-you-beat-market-volatility",
-                      "https://www.straitstimes.com/singapore/maliki-s-hari-raya-visit-to-brunei-reflects-close-bilateral-ties-between-the-two-nations-mfa"]
+                      "https://www.straitstimes.com/singapore/maliki-s-hari-raya-visit-to-brunei-reflects-close-bilateral-ties-between-the-two-nations-mfa",
+                      "https://cnalifestyle.channelnewsasia.com/entertainment/celebrity-halloween-costumes-2020-jay-chou-lizzo-the-rock-240891"]
 
     else:
         if search_country == 'singapore':
@@ -661,6 +662,9 @@ class CovidNewsSpider(scrapy.Spider):
             "is associate fellow",
             "is a phd candidate",
             "is a doctoral candidate",
+            "this article originally appear",
+            "© 2023 the new york times",
+            "cna women is a section on cna",
             "copyright© mediacorp 2023"
         ]
 
@@ -679,6 +683,7 @@ class CovidNewsSpider(scrapy.Spider):
 
             # Check if phrases are in the buffer
             buffer_string = ' '.join(buffer).lower()
+
             for phrase in search_phrases:
 
                 if phrase in buffer_string:
@@ -716,7 +721,7 @@ class CovidNewsSpider(scrapy.Spider):
                             # Join the lines back into a single string
                             cleaned_text = "\n".join(lines)
                             print(f"inside remove_footnote(), cleaned_text = {cleaned_text}")
-                            return cleaned_text
+                            return self.remove_footnote(cleaned_text)  # to make sure ALL footnote phrases are removed completely
 
         # return the original text if no footnote was found
         return text
