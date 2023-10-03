@@ -74,9 +74,10 @@ class CovidNewsSpider(scrapy.Spider):
     name = 'covid_news_spider'
 
     if TEST_SPECIFIC:
-        start_urls = ["https://www.straitstimes.com/sport/formula-one/two-new-grandstands-added-to-formula-one-singapore-grand-prix-for-2023",
-                      "https://www.straitstimes.com/singapore/maliki-s-hari-raya-visit-to-brunei-reflects-close-bilateral-ties-between-the-two-nations-mfa",
-                      "https://cnalifestyle.channelnewsasia.com/entertainment/celebrity-halloween-costumes-2020-jay-chou-lizzo-the-rock-240891"]
+        start_urls = ["https://www.straitstimes.com/sport/formula-one/two-new-grandstands-added-to-formula-one-singapore-grand-prix-for-2023",  # instagram post
+                      "https://www.straitstimes.com/singapore/maliki-s-hari-raya-visit-to-brunei-reflects-close-bilateral-ties-between-the-two-nations-mfa",  # instagram post
+                      "https://www.channelnewsasia.com/singapore/covid-19-locations-visited-queensway-shopping-masjid-assyakirin-712556",  # part of the sentence text is embedded inside images
+                      "https://cnalifestyle.channelnewsasia.com/entertainment/celebrity-halloween-costumes-2020-jay-chou-lizzo-the-rock-240891"]  # instagram post
 
     else:
         if search_country == 'singapore':
@@ -384,11 +385,12 @@ class CovidNewsSpider(scrapy.Spider):
                 more_links = response.css('a:contains("Next Page")::attr(href)').get()
 
         elif 'mb.com.ph' in response.url:
-            more_links = response.css('a::attr(href)').getall()
-
-            # need to figure out how to click the "MORE+" button, and then execute the css() selector code again
-            #more_links = response.css('.mb-font-more-button::text').get()
-            return None
+            if SEARCH_ENTIRE_WEBSITE:
+                more_links = response.css('a::attr(href)').getall()
+            else:
+                # need to figure out how to click the "MORE+" button, and then execute the css() selector code again
+                #more_links = response.css('.mb-font-more-button::text').get()
+                return None
 
         elif 'archive.org' in response.url:
             more_links = response.css('a.format-summary:contains("FULL TEXT")::attr(href)').getall()
@@ -658,13 +660,26 @@ class CovidNewsSpider(scrapy.Spider):
             "download our app",
             "read this story in",
             "is an editor at",
+            "is a journalist at",
+            "is a senior journalist at",
             "is associate fellow",
             "is a phd candidate",
             "is a doctoral candidate",
+            "is Research Fellow",
+            "is Associate Professor",
+            "is Professor",
             "is a lecturer",
             "is a senior lecturer",
+            "is President of",
+            "Editor's note",
             "this article originally appear",
             "© 2023 the new york times",
+            "© The Financial Times",
+            "© 2021 The Financial Times",
+            "© 2022 The Financial Times",
+            "© 2023 The Financial Times",
+            "(Source: AP)",
+            "catch the olympics games",
             "cna women is a section on cna",
             "copyright© mediacorp 2023"
         ]
@@ -687,7 +702,7 @@ class CovidNewsSpider(scrapy.Spider):
 
             for phrase in search_phrases:
 
-                if phrase in buffer_string:
+                if phrase.lower() in buffer_string:
                     # Find the position of the phrase in the buffer string
                     phrase_start = buffer_string.find(phrase)
                     phrase_end = phrase_start + len(phrase)
