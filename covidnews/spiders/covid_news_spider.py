@@ -52,7 +52,8 @@ irrelevant_subdomain_names = ["channelnewsasia.com/watch/", "cnaluxury.channelne
                               "cnalifestyle.channelnewsasia.com/brandstudio/",
                               "straitstimes.com/video", "channelnewsasia.com/listen/",
                               "channelnewsasia.com/author", "straitstimes.com/author",
-                              "channelnewsasia.com/about-us"]
+                              "channelnewsasia.com/about-us",
+                              "mb.com.ph/our-company"]
 
 # articles that are published with only a title, and without any body content and publish date
 incomplete_articles = ["https://www.straitstimes.com/singapore/education/ask-sandra-jc-mergers",
@@ -60,7 +61,9 @@ incomplete_articles = ["https://www.straitstimes.com/singapore/education/ask-san
                        "https://www.straitstimes.com/singapore/does-getting-zika-infection-once-confer-immunity",
                        "https://www.straitstimes.com/tags/bhumibol-adulyadej",
                        "https://www.straitstimes.com/askst/steely-stand-off",
-                       "https://www.straitstimes.com/singapore/environment/askst-is-it-safe-to-eat-spinach-leaves-which-have-white-spots-on-them"]
+                       "https://www.straitstimes.com/singapore/environment/askst-is-it-safe-to-eat-spinach-leaves-which-have-white-spots-on-them",
+                       "https://mb.com.ph/rss/articles"
+                        ]
 
 
 # subdomain_1.subdomain_2.domain.com.eu , 3 if excluding subdomains
@@ -77,6 +80,7 @@ class CovidNewsSpider(scrapy.Spider):
         start_urls = ["https://www.straitstimes.com/sport/formula-one/two-new-grandstands-added-to-formula-one-singapore-grand-prix-for-2023",  # instagram post
                       "https://www.straitstimes.com/singapore/maliki-s-hari-raya-visit-to-brunei-reflects-close-bilateral-ties-between-the-two-nations-mfa",  # instagram post
                       "https://www.channelnewsasia.com/singapore/covid-19-locations-visited-queensway-shopping-masjid-assyakirin-712556",  # part of the sentence text is embedded inside images
+                      "https://www.straitstimes.com/singapore/changed-forever-by-one-pandemic-is-singapore-ready-for-the-next",  # irrelevant advertisement paragraph text by SPH Media
                       "https://cnalifestyle.channelnewsasia.com/entertainment/celebrity-halloween-costumes-2020-jay-chou-lizzo-the-rock-240891"]  # instagram post
 
     else:
@@ -532,7 +536,8 @@ class CovidNewsSpider(scrapy.Spider):
             #return response.css('div.queryly_item_row')
 
         elif 'mb.com.ph' in response.url:
-            return response.css('div.row.mb-16')
+            print("parse_articles() for mb.com.ph")
+            return response.css('div.row.mb-16, .custom-article-text, .mb-font-article-title, .mb-font-live-update-article-title, .custom-text-link, .custom-text-link-blk')
 
         elif 'archive.org' in response.url:
             if 'https://archive.org/details/' in response.url:
@@ -661,6 +666,7 @@ class CovidNewsSpider(scrapy.Spider):
             "read this story in",
             "is an editor at",
             "is a journalist at",
+            "is a journalist based in",
             "is a senior journalist at",
             "is associate fellow",
             "is a phd candidate",
@@ -673,6 +679,7 @@ class CovidNewsSpider(scrapy.Spider):
             "is President of",
             "Editor's note",
             "this article originally appear",
+            "© The New York Times",
             "© 2023 the new york times",
             "© The Financial Times",
             "© 2021 The Financial Times",
@@ -681,6 +688,7 @@ class CovidNewsSpider(scrapy.Spider):
             "(Source: AP)",
             "catch the olympics games",
             "cna women is a section on cna",
+            "Write to us at",
             "copyright© mediacorp 2023"
         ]
 
@@ -816,8 +824,6 @@ class CovidNewsSpider(scrapy.Spider):
 
 
             if body:
-                # This will remove duplicates while preserving the original order of elements.
-                body = list(OrderedDict.fromkeys(body))
                 body = [s.strip() for s in body]
                 body = '\n'.join(body)
                 body = body.strip()
