@@ -537,7 +537,7 @@ class CovidNewsSpider(scrapy.Spider):
 
         elif 'mb.com.ph' in response.url:
             print("parse_articles() for mb.com.ph")
-            return response.css('div.row.mb-16, .custom-article-text, .mb-font-article-title, .mb-font-live-update-article-title, .custom-text-link, .custom-text-link-blk')
+            return response.css('div.row.mb-16, .custom-article-text, .mb-font-article-title, .mb-font-live-update-article-title')
 
         elif 'archive.org' in response.url:
             if 'https://archive.org/details/' in response.url:
@@ -586,7 +586,9 @@ class CovidNewsSpider(scrapy.Spider):
             link = article.css('a::attr(href)').get()
 
         elif 'mb.com.ph' in response.url:
-            title = article.css('.mb-font-article-title a::text').get()
+            title = article.css('.mb-font-article-title a::text').get() or \
+                    article.css('div.mb-font-article-title a span::text').get() or \
+                    article.css('span.mb-font-live-update-article-title::attr(title)').get()
             date = article.css('.mb-font-article-date::text').get()
 
             link = article.css('a::attr(href)').get()
@@ -813,6 +815,7 @@ class CovidNewsSpider(scrapy.Spider):
                 body = response.css('p ::text').getall()
                 if date is None:
                     print("mb.com.ph date is None !!!")
+                    date = response.css('.mb-font-article-date::text').get()
 
             elif 'archive.org' in response.url:
                 body = response.css('div.article p::text').getall() or \
