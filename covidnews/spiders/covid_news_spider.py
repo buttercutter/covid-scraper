@@ -37,7 +37,7 @@ excluded_file_extensions = [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".pdf", ".x
 # Only parses URLs within these domains
 allowed_domain_names = ["archive.org", "straitstimes.com", "channelnewsasia.com", "mb.com.ph"]
 
-# not accessible due to DNA lookup error or the webpage had since migrated to other subdomains
+# not accessible due to DNS lookup error or the webpage had since migrated to other subdomains
 inaccessible_subdomain_names = ["olympianbuilder.straitstimes.com", "ststaff.straitstimes.com", "media.straitstimes.com",
                                 "buildsg2065.straitstimes.com", "origin-stcommunities.straitstimes.com",
                                 "stcommunities.straitstimes.com", "euro2016.straitstimes.com",
@@ -45,12 +45,15 @@ inaccessible_subdomain_names = ["olympianbuilder.straitstimes.com", "ststaff.str
                                 "prdstaff.straitstimes.com", "staff.straitstimes.com",
                                 "stompcms.straitstimes.com"]
 
-# these subdomains contains irrelevant contents for text-based media article scraping
+# these subdomains contains irrelevant contents for region-based, text-based media article scraping
 irrelevant_subdomain_names = ["channelnewsasia.com/watch/", "cnaluxury.channelnewsasia.com",
                               "straitstimes.com/multimedia/graphics/", "graphics.straitstimes.com/",
                               "cnalifestyle.channelnewsasia.com/interactives/", "channelnewsasia.com/video",
                               "cnalifestyle.channelnewsasia.com/brandstudio/",
                               "straitstimes.com/video", "channelnewsasia.com/listen/",
+                              "channelnewsasia.com/asia/east-asia/", "channelnewsasia.com/asia/south-asia/",
+                              "channelnewsasia.com/world/", "channelnewsasia.com/sport/",
+                              "channelnewsasia.com/business", "channelnewsasia.com/entertainment",
                               "channelnewsasia.com/author", "straitstimes.com/author",
                               "channelnewsasia.com/about-us",
                               "mb.com.ph/our-company"]
@@ -465,6 +468,8 @@ class CovidNewsSpider(scrapy.Spider):
         else:
             articles = []
 
+        print(f"len(articles) = {len(articles)}")
+
         for article in articles:
             yield from self.parse_article(article, response)
 
@@ -537,7 +542,30 @@ class CovidNewsSpider(scrapy.Spider):
 
         elif 'mb.com.ph' in response.url:
             print("parse_articles() for mb.com.ph")
-            return response.css('div.row.mb-16, .custom-article-text, .mb-font-article-title, .mb-font-live-update-article-title')
+
+            if response.url == 'https://mb.com.ph/category/specials':
+
+                body = response.css('*').getall()
+
+                if body:
+                    body = [s.strip() for s in body]
+                    body = '\n'.join(body)
+                    body = body.strip()
+
+                    body = self.remove_photograph_credit(body)
+                    body = self.remove_footnote(body)
+
+
+                # Write the scraped html response to local file for debugging purpose
+                self.write_to_local_data(
+                                            link = response.url,
+                                            title = 'manila_bulletin_debug',
+                                            body = body,
+                                            date = '1 October 2020',
+                                            response = response,
+                                        )
+
+            return response.css('div.row.mb-16, div.row.mb-5, .custom-article-text, .mb-font-article-title, .mb-font-live-update-article-title, div.videoCube.trc_spotlight_item.origin-undefined')
 
         elif 'archive.org' in response.url:
             if 'https://archive.org/details/' in response.url:
@@ -711,8 +739,9 @@ class CovidNewsSpider(scrapy.Spider):
             buffer_string = ' '.join(buffer).lower()
 
             for phrase in search_phrases:
+                phrase = phrase.lower()
 
-                if phrase.lower() in buffer_string:
+                if phrase in buffer_string:
                     # Find the position of the phrase in the buffer string
                     phrase_start = buffer_string.find(phrase)
                     phrase_end = phrase_start + len(phrase)
@@ -869,7 +898,8 @@ class CovidNewsSpider(scrapy.Spider):
             date = parse(date)
             published_year = date.year
 
-        date_is_within_covid_period = published_year >= 2019
+        # Jan 2020 till Jan 2022
+        date_is_within_covid_period = ((published_year >= 2020) and (published_year <= 2021))
         print(f"date = {date}, and published_year = {published_year}, and date_is_within_covid_period = {date_is_within_covid_period}")
 
         if ((title != None and any(keyword in title.lower() for keyword in search_keywords)) or \
