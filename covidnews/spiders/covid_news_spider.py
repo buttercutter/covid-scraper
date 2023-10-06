@@ -80,11 +80,10 @@ class CovidNewsSpider(scrapy.Spider):
     name = 'covid_news_spider'
 
     if TEST_SPECIFIC:
-        start_urls = ["https://www.straitstimes.com/sport/formula-one/two-new-grandstands-added-to-formula-one-singapore-grand-prix-for-2023",  # instagram post
-                      "https://www.straitstimes.com/singapore/maliki-s-hari-raya-visit-to-brunei-reflects-close-bilateral-ties-between-the-two-nations-mfa",  # instagram post
+        start_urls = [
                       "https://www.channelnewsasia.com/singapore/covid-19-locations-visited-queensway-shopping-masjid-assyakirin-712556",  # part of the sentence text is embedded inside images
-                      "https://www.straitstimes.com/singapore/changed-forever-by-one-pandemic-is-singapore-ready-for-the-next",  # irrelevant advertisement paragraph text by SPH Media
-                      "https://cnalifestyle.channelnewsasia.com/entertainment/celebrity-halloween-costumes-2020-jay-chou-lizzo-the-rock-240891"]  # instagram post
+                      "https://www.straitstimes.com/singapore/changed-forever-by-one-pandemic-is-singapore-ready-for-the-next"  # irrelevant advertisement paragraph text by SPH Media
+                     ]
 
     else:
         if search_country == 'singapore':
@@ -812,15 +811,14 @@ class CovidNewsSpider(scrapy.Spider):
 
         else:
             if 'channelnewsasia' in response.url:
-                #body = response.xpath('//p[not(@*)]//descendant-or-self::node()/text()').getall()
-                body = response.xpath('//blockquote//p//text() | //p[not(@*) and not(ancestor::figcaption)]/descendant-or-self::node()/text() | //p[last() and ancestor-or-self::div[@class="text"]]//text() | (//p)[last()]//em/descendant-or-self::node()/text() | //ul/li[not(@*)]/span[not(@*)]/span[not(@*)]/text()').getall()
+                body = response.xpath('//blockquote//p//text() | //p[not(@*) and not(ancestor::figcaption)]/descendant-or-self::node()/text() | //ul/li[not(@*)]/span[not(@*)]/span[not(@*)]/text()').getall()
                 if date is None:
                     date = response.css('.article-publish::text').get() or \
                             response.css('.article-publish span::text').get()
 
             elif 'straitstimes' in response.url:
-                #body = response.xpath('//p[not(@*)]/text()').getall()
-                body = response.css('p ::text, h2:not(.visually-hidden)::text').getall()
+                #body = response.css('p ::text, h2:not(.visually-hidden) ::text').getall()
+                body = response.xpath('//p[not(ancestor::blockquote[contains(@class, "instagram-media")]) and not(ancestor::div[contains(@class, "fb-post")])]//text() | //h2[not(contains(@class, "visually-hidden"))]/text()').getall()
 
                 if date is None:
                     print("straitstimes date is None !!!")
@@ -898,8 +896,13 @@ class CovidNewsSpider(scrapy.Spider):
             date = parse(date)
             published_year = date.year
 
-        # Jan 2020 till Jan 2022
-        date_is_within_covid_period = ((published_year >= 2020) and (published_year <= 2021))
+
+        if TEST_SPECIFIC:
+            date_is_within_covid_period = published_year >= 2019
+        else:
+            # Jan 2020 till Jan 2022
+            date_is_within_covid_period = ((published_year >= 2020) and (published_year <= 2021))
+
         print(f"date = {date}, and published_year = {published_year}, and date_is_within_covid_period = {date_is_within_covid_period}")
 
         if ((title != None and any(keyword in title.lower() for keyword in search_keywords)) or \
