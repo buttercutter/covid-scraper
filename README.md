@@ -1,4 +1,10 @@
 # covid-scraper
 A simple scrapy-splash code for covid related media scraper
 
-Command : `scrapy crawl covid_news_spider -o combinedspider_output.json &> scrapy.log`
+Command :
+
+`sudo systemctl start docker`
+
+`sudo docker run -p 8050:8050 scrapinghub/splash`
+
+`scrapy crawl covid_news_spider &> scrapy.log`

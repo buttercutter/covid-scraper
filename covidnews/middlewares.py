@@ -12,6 +12,7 @@ from itemadapter import is_item, ItemAdapter
 import gzip
 from scrapy.utils.response import response_status_message
 from scrapy.downloadermiddlewares.retry import RetryMiddleware
+from scrapy.downloadermiddlewares.httpcompression import HttpCompressionMiddleware
 
 
 class GzipRetryMiddleware(RetryMiddleware):
@@ -20,14 +21,25 @@ class GzipRetryMiddleware(RetryMiddleware):
             reason = response_status_message(response.status)
             return self._retry(request, reason, spider) or response
 
-        if b'Content-Encoding' in response.headers and b'gzip' in response.headers[b'Content-Encoding']:
-            try:
-                body = gzip.decompress(response.body)
-                return response.replace(body=body)
-            except (OSError, EOFError) as e:
-                return self._retry(request, e, spider) or response
+        if response.headers is not None and b'Content-Encoding' in response.headers:
+            content_encoding = response.headers[b'Content-Encoding']
+
+            if content_encoding is not None and b'gzip' in content_encoding:
+                try:
+                    body = gzip.decompress(response.body)
+                    return response.replace(body=body)
+                except (OSError, EOFError) as e:
+                    return self._retry(request, e, spider) or response
 
         return response
+
+
+class ForgivingHttpCompressionMiddleware(HttpCompressionMiddleware):
+    def process_response(self, request, response, spider):
+        try:
+            return super().process_response(request, response, spider)
+        except gzip.BadGzipFile:
+            return response  # Return uncompressed response if decompression fails
 
 
 class CovidnewsSpiderMiddleware:
