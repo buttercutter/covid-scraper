@@ -507,7 +507,14 @@ class CovidNewsSpider(scrapy.Spider):
                     callback=self.parse,
                     #endpoint='render.html',  # for non-pure html with javascript
                     endpoint='execute',  # for closing advertising overlay page to get to desired page
-                    args={'lua_source': self.js_script, 'adblock': True, 'wait': 0.5, 'resource_timeout': 10},
+                    args={'lua_source': self.js_script,
+                          'lua_source_isolated': False,  # for showing self.js_script print() output
+                          'adblock': True,
+                          'wait': 10,
+                          'resource_timeout': 10,
+                          'timeout': 60  # limit the total time the Lua script can run (optional)
+                         },
+                    splash_headers={'X-Splash-Render-HTML': 1},  # for non-pure html with javascript
                     headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
                 )
 
@@ -650,7 +657,14 @@ class CovidNewsSpider(scrapy.Spider):
                 meta={'title': title, 'date': date, 'article_url': article_url},  # Pass additional data here
                 #endpoint='render.html',  # for non-pure html with javascript
                 endpoint='execute',  # for closing advertising overlay page to get to desired page
-                args={'lua_source': self.js_script, 'adblock': True, 'wait': 0.5, 'resource_timeout': 10},
+                args={'lua_source': self.js_script,
+                      'lua_source_isolated': False,  # for showing self.js_script print() output
+                      'adblock': True,
+                      'wait': 10,
+                      'resource_timeout': 10,
+                      'timeout': 60  # limit the total time the Lua script can run (optional)
+                     },
+                splash_headers={'X-Splash-Render-HTML': 1},  # for non-pure html with javascript
                 headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,      like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
             )
 
