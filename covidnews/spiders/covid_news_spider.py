@@ -6,6 +6,7 @@ import re
 from urllib.parse import urlparse, urlunparse
 from dateutil.parser import parse
 
+import base64
 from collections import OrderedDict
 
 # For http://web.archive.org/
@@ -47,9 +48,10 @@ inaccessible_subdomain_names = ["olympianbuilder.straitstimes.com", "ststaff.str
 
 # these subdomains contains irrelevant contents for region-based, text-based media article scraping
 irrelevant_subdomain_names = ["channelnewsasia.com/watch/", "cnaluxury.channelnewsasia.com",
-                              "straitstimes.com/multimedia/graphics/", "graphics.straitstimes.com/",
+                              "straitstimes.com/multimedia/", "graphics.straitstimes.com/",
                               "cnalifestyle.channelnewsasia.com/interactives/", "channelnewsasia.com/video",
                               "cnalifestyle.channelnewsasia.com/brandstudio/",
+                              "channelnewsasia.com/experiences/", "channelnewsasia.com/dining/",
                               "straitstimes.com/video", "channelnewsasia.com/listen/",
                               "channelnewsasia.com/asia/east-asia/", "channelnewsasia.com/asia/south-asia/",
                               "channelnewsasia.com/world/", "channelnewsasia.com/sport/",
@@ -106,13 +108,19 @@ class CovidNewsSpider(scrapy.Spider):
 
     custom_settings = {
         'DOWNLOADER_MIDDLEWARES': {
+            'scrapy_splash.SplashCookiesMiddleware': 723,
+            'scrapy_splash.SplashMiddleware': 725,
             'covidnews.middlewares.GzipRetryMiddleware': 543,
-            'scrapy.downloadermiddlewares.httpcompression.HttpCompressionMiddleware': None,
+            'covidnews.middlewares.ForgivingHttpCompressionMiddleware': 810,
+        },
+
+        'SPIDER_MIDDLEWARES': {
+            'scrapy_splash.SplashDeduplicateArgsMiddleware': 100,
         },
     }
 
     js_script = """
-        function main(splash)
+        function main(splash, args)
 
             -- Go to page
             splash:go(splash.args.url)
@@ -122,24 +130,6 @@ class CovidNewsSpider(scrapy.Spider):
 
             -- Print url
             print("splash:url() = ", splash:url())
-
-            -- Select button
-            local close_ads_btn = splash:select('#pclose-btn')
-            local expand_btn = splash:select('a.article__read-full-story-button')
-
-            -- Print details
-            print("close_ads_btn = ", close_ads_btn:outerHtml())
-            print("expand_btn = ", expand_btn:outerHtml())
-
-            -- Click button
-            close_ads_btn:mouse_click()
-            expand_btn:mouse_click()
-
-            -- Wait 5 seconds
-            splash:wait(5.0)
-
-            -- Reload final url
-            splash:go(splash:url())
 
             -- Return HTML after waiting
             return splash:html()
@@ -148,7 +138,7 @@ class CovidNewsSpider(scrapy.Spider):
         """
 
     js_script_test_specific = """
-        function main(splash)
+        function main(splash, args)
 
             -- Go to page
             splash:go(splash.args.url)
@@ -159,26 +149,13 @@ class CovidNewsSpider(scrapy.Spider):
             -- Print url
             print("splash:url() = ", splash:url())
 
-            -- Select button
-            local close_ads_btn = splash:select('#pclose-btn')
-            local expand_btn = splash:select('a.article__read-full-story-button')
-
-            -- Print details
-            print("close_ads_btn = ", close_ads_btn:outerHtml())
-            print("expand_btn = ", expand_btn:outerHtml())
-
-            -- Click button
-            close_ads_btn:mouse_click()
-            expand_btn:mouse_click()
-
-            -- Wait 5 seconds
-            splash:wait(5.0)
-
-            -- Reload final url
-            splash:go(splash:url())
+            -- for visual debugging purpose
+            splash:set_viewport_full()
+            local png = splash:png()
 
             return {
                 url = splash:url(),
+                png = png,
                 html = splash:html(),
             }
 
@@ -335,7 +312,11 @@ class CovidNewsSpider(scrapy.Spider):
                             endpoint='execute',  # for closing advertising overlay page to get to desired page
                             args={'lua_source': self.js_script_test_specific,
                                   'lua_source_isolated': False,  # for showing self.js_script print() output
-                                  'adblock': True, 'wait': 10, 'resource_timeout': 10},
+                                  'adblock': True,
+                                  'wait': 10,
+                                  'resource_timeout': 10,
+                                  'timeout': 60  # limit the total time the Lua script can run (optional)
+                                 },
                             splash_headers={'X-Splash-Render-HTML': 1},  # for non-pure html with javascript
                             headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
                         )
@@ -345,7 +326,13 @@ class CovidNewsSpider(scrapy.Spider):
                             url,
                             callback=self.parse,
                             endpoint='execute',  # for closing advertising overlay page to get to desired page
-                            args={'lua_source': self.js_script, 'adblock': True, 'wait': 10, 'resource_timeout': 10},
+                            args={'lua_source': self.js_script,
+                                  'lua_source_isolated': False,  # for showing self.js_script print() output
+                                  'adblock': True,
+                                  'wait': 10,
+                                  'resource_timeout': 10,
+                                  'timeout': 60  # limit the total time the Lua script can run (optional)
+                                 },
                             splash_headers={'X-Splash-Render-HTML': 1},  # for non-pure html with javascript
                             headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
                         )
@@ -520,7 +507,14 @@ class CovidNewsSpider(scrapy.Spider):
                     callback=self.parse,
                     #endpoint='render.html',  # for non-pure html with javascript
                     endpoint='execute',  # for closing advertising overlay page to get to desired page
-                    args={'lua_source': self.js_script, 'adblock': True, 'wait': 0.5, 'resource_timeout': 10},
+                    args={'lua_source': self.js_script,
+                          'lua_source_isolated': False,  # for showing self.js_script print() output
+                          'adblock': True,
+                          'wait': 10,
+                          'resource_timeout': 10,
+                          'timeout': 60  # limit the total time the Lua script can run (optional)
+                         },
+                    splash_headers={'X-Splash-Render-HTML': 1},  # for non-pure html with javascript
                     headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
                 )
 
@@ -663,7 +657,14 @@ class CovidNewsSpider(scrapy.Spider):
                 meta={'title': title, 'date': date, 'article_url': article_url},  # Pass additional data here
                 #endpoint='render.html',  # for non-pure html with javascript
                 endpoint='execute',  # for closing advertising overlay page to get to desired page
-                args={'lua_source': self.js_script, 'adblock': True, 'wait': 0.5, 'resource_timeout': 10},
+                args={'lua_source': self.js_script,
+                      'lua_source_isolated': False,  # for showing self.js_script print() output
+                      'adblock': True,
+                      'wait': 10,
+                      'resource_timeout': 10,
+                      'timeout': 60  # limit the total time the Lua script can run (optional)
+                     },
+                splash_headers={'X-Splash-Render-HTML': 1},  # for non-pure html with javascript
                 headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,      like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
             )
 
@@ -862,6 +863,7 @@ class CovidNewsSpider(scrapy.Spider):
                 body = self.remove_footnote(body)
 
             if date:
+                date = ''.join(c for c in date if c.isprintable())  # to remove erroneous non-ASCII printable character
                 date = date.strip()  # to remove unnecessary whitespace or newlines characters
 
             print(f"inside get_article_content(), article_url = {link} , title = {title}, date = {date}, body = {body}")
@@ -873,6 +875,23 @@ class CovidNewsSpider(scrapy.Spider):
 
             else:
                 self.write_to_local_data(link, title, body, date, response)
+
+                # for the purpose of debugging js_script_test_specific
+                if TEST_SPECIFIC:
+                    print(f"for debug, type(response) = {type(response)}")
+
+                    # The webpage HTML is in data['html']
+                    html = response.data['html']
+
+                    # The screenshot is in data['png']
+                    png = response.data['png']
+
+                    # You can now save the debug screenshot to a file, like so:
+                    file_parent_directory = ''
+                    filename = file_parent_directory + link.replace('http://', '').replace('/', '_') + '_screenshot.png'
+                    print("filename = ", filename)
+                    with open(filename, 'wb') as f:
+                        f.write(base64.b64decode(png))
 
                 yield {
                     'title': title,
