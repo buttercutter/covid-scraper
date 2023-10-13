@@ -36,7 +36,7 @@ excluded_file_extensions = [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".pdf", ".x
                             ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".zip"]
 
 # Only parses URLs within these domains
-allowed_domain_names = ["archive.org", "straitstimes.com", "channelnewsasia.com", "mb.com.ph"]
+allowed_domain_names = ["archive.org", "straitstimes.com", "channelnewsasia.com", "mb.com.ph", "inquirer.net"]
 
 # not accessible due to DNS lookup error or the webpage had since migrated to other subdomains
 inaccessible_subdomain_names = ["olympianbuilder.straitstimes.com", "ststaff.straitstimes.com", "media.straitstimes.com",
@@ -53,10 +53,13 @@ irrelevant_subdomain_names = ["channelnewsasia.com/watch/", "cnaluxury.channelne
                               "cnalifestyle.channelnewsasia.com/brandstudio/",
                               "channelnewsasia.com/experiences/", "channelnewsasia.com/dining/",
                               "straitstimes.com/video", "channelnewsasia.com/listen/",
+                              "straitstimes.com/world/",
+                              "straitstimes.com/asia/east-asia/",
                               "channelnewsasia.com/asia/east-asia/", "channelnewsasia.com/asia/south-asia/",
                               "channelnewsasia.com/world/", "channelnewsasia.com/sport/",
                               "channelnewsasia.com/business", "channelnewsasia.com/entertainment",
                               "channelnewsasia.com/author", "straitstimes.com/author",
+                              "channelnewsasia.com/women/",
                               "channelnewsasia.com/about-us",
                               "mb.com.ph/our-company"]
 
@@ -83,6 +86,13 @@ class CovidNewsSpider(scrapy.Spider):
 
     if TEST_SPECIFIC:
         start_urls = [
+                      "https://www.straitstimes.com/singapore/jobs/government-unions-employer-groups-start-work-on-guidelines-on-flexible-work-arrangements",  # title.lower()
+                      "https://www.channelnewsasia.com/advertorial/building-global-healthcare-ecosystem-care-good-2943211",  # AttributeError: 'list' object has no attribute 'lower'
+                      "https://www.channelnewsasia.com/remarkableliving/kausmo-educating-singapore-diners-about-food-wastage-1882711",  # AttributeError: 'list' object has no attribute 'lower'
+                      "https://www.straitstimes.com/singapore/fewer-families-received-comcare-financial-aid-from-the-government-last-year",  # AttributeError: 'list' object has no attribute 'lower'
+                      "https://www.channelnewsasia.com/singapore/new-covid-19-variants-uk-south-africa-strains-b117-explainer-416156",  # AttributeError: 'list' object has no attribute 'encode'
+                      "https://www.channelnewsasia.com/singapore/mpa-covid-19-10-000-frontline-workers-vaccinations-415726",  # AttributeError: 'list' object has no attribute 'lower'
+                      "https://www.channelnewsasia.com/singapore/covid19-how-to-choose-masks-filtration-bfe-surgical-1382776",  # AttributeError: 'list' object has no attribute 'lower'
                       "https://www.channelnewsasia.com/singapore/covid-19-locations-visited-queensway-shopping-masjid-assyakirin-712556",  # part of the sentence text is embedded inside images
                       "https://www.straitstimes.com/singapore/changed-forever-by-one-pandemic-is-singapore-ready-for-the-next"  # irrelevant advertisement paragraph text by SPH Media
                      ]
@@ -102,6 +112,7 @@ class CovidNewsSpider(scrapy.Spider):
                 #'https://www.pna.gov.ph/',  # webite server seems to block scraping activity
                 #'https://www.manilatimes.net/search?query=covid',  # forbidden by the /search rule in robots.txt
                 #'https://www.manilatimes.net/',  # almost all articles requires digital subscription fees
+                'https://www.inquirer.net/',
                 'https://mb.com.ph/search-results?s=covid'
             ]
 
@@ -125,8 +136,8 @@ class CovidNewsSpider(scrapy.Spider):
             -- Go to page
             splash:go(splash.args.url)
 
-            -- Wait for 5 seconds
-            splash:wait(5.0)
+            -- Wait for 7 seconds
+            splash:wait(7.0)
 
             -- Print url
             print("splash:url() = ", splash:url())
@@ -143,8 +154,8 @@ class CovidNewsSpider(scrapy.Spider):
             -- Go to page
             splash:go(splash.args.url)
 
-            -- Wait for 5 seconds
-            splash:wait(5.0)
+            -- Wait for 7 seconds
+            splash:wait(7.0)
 
             -- Print url
             print("splash:url() = ", splash:url())
@@ -533,6 +544,9 @@ class CovidNewsSpider(scrapy.Spider):
             return response.css('div.card-body')
             #return response.css('div.queryly_item_row')
 
+        elif 'inquirer.net' in response.url:
+            return response.css('.fix-leftbox, .fix-m-box, .tr_boxs3, .fv-ed-box, .op-columns-box, .image-with-text, .buzz-box, .inqf-box, .data-tb-region-item, div.items[data-tb-region-item], .cmr-bg, .ncg-box')
+
         elif 'mb.com.ph' in response.url:
             print("parse_articles() for mb.com.ph")
 
@@ -599,10 +613,20 @@ class CovidNewsSpider(scrapy.Spider):
                     article.css('div.quick-link::attr(data-link_absolute)').get()
 
         elif 'straitstimes' in response.url:
-            title = article.css('h5.card-title a::text').get()
+            title = article.css('h5.card-title a::text').get() or \
+                    article.css('.node-header.h1::text').get()
             date = article.css('time::text').get() or \
                     article.css('time::attr(datetime)').get() or \
                     article.css('.story-postdate::text').get()
+
+            link = article.css('a::attr(href)').get()
+
+        elif 'inquirer.net' in response.url:
+            title = article.css('.fix-m-head::text, .fix-l-head::text, .tr_boxs3.h2 a::text, .data-tb-region-item.h3 a::text, .items[data-tb-region-item].h3 a::text, .cmr-info.h1 a::text, .ncg-info.h1 a::text').get()
+            date = article.css('.tr_boxs3.h6 ::text').get() or \
+                    article.css('.cmr-info.h3::text').get() or \
+                    article.css('.ncg-info.ncg-postdate::text').get() or \
+                    article.css('.data-tb-region-item.h4::text').get()
 
             link = article.css('a::attr(href)').get()
 
