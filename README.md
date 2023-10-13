@@ -5,6 +5,6 @@ Command :
 
 `sudo systemctl start docker`
 
-`sudo docker run -p 8050:8050 scrapinghub/splash`
+`sudo docker run --restart=always -p 8050:8050 scrapinghub/splash`
 
 `scrapy crawl covid_news_spider &> scrapy.log`
