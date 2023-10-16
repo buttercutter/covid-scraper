@@ -622,7 +622,7 @@ class CovidNewsSpider(scrapy.Spider):
             link = article.css('a::attr(href)').get()
 
         elif 'inquirer.net' in response.url:
-            title = article.css('.fix-m-head::text, .fix-l-head::text, .tr_boxs3.h2 a::text, .data-tb-region-item.h3 a::text, .items[data-tb-region-item].h3 a::text, .cmr-info.h1 a::text, .ncg-info.h1 a::text').get()
+            title = article.css('.fix-m-head::text, .fix-l-head::text, .tr_boxs3.h2 a::text, .data-tb-region-item.h3 a::text, .items[data-tb-region-item].h3 a::text, .cmr-info.h1 a::text, .ncg-info.h1 a::text, h1.entry-title::text').get()
             date = article.css('.tr_boxs3.h6 ::text').get() or \
                     article.css('.cmr-info.h3::text').get() or \
                     article.css('.ncg-info.ncg-postdate::text').get() or \
@@ -862,6 +862,24 @@ class CovidNewsSpider(scrapy.Spider):
 
                     if response.css('.st-byline::text').get() is not None and 'Published: ' in date:
                         date = date.split('Published: ')[-1]
+
+            elif 'inquirer.net' in response.url:
+                title = response.css('h1.entry-title::text').get()
+                body = response.css('p ::text').getall()
+                if date is None:
+                    print("inquirer.net date is None !!!")
+
+                    if response.css('div#m-pd2 > span:nth-child(2)::text').get() and len(response.css('div#m-pd2 > span:nth-child(2)::text').get()) > 1:
+                        date = response.css('div#m-pd2 > span:nth-child(2)::text').get()
+                    elif response.css('div#m-pd2 > span:nth-child(3)::text').get() and len(response.css('div#m-pd2 > span:nth-child(3)::text').get()) > 1:
+                        date = response.css('div#m-pd2 > span:nth-child(3)::text').get()
+
+                    date = date or \
+                            response.css('div.art-byline span:last-child::text').get() or \
+                            response.css('ul.blog-meta-list > li:nth-child(3) a::text').get() or \
+                            response.css('div.bpdate::text').get() or \
+                            response.css('li[itemprop="datePublished"] span::text').get() or \
+                            response.css('div[id="art_plat"]::text').getall()[-1]
 
             elif 'mb.com.ph' in response.url:
                 body = response.css('p ::text').getall()
