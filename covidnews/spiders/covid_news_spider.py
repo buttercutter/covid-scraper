@@ -36,7 +36,12 @@ excluded_file_extensions = [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".pdf", ".x
                             ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".zip"]
 
 # Only parses URLs within these domains
-allowed_domain_names = ["archive.org", "straitstimes.com", "channelnewsasia.com", "mb.com.ph", "inquirer.net"]
+if search_country == 'singapore':
+    allowed_domain_names = ["straitstimes.com", "channelnewsasia.com"]
+
+elif search_country == 'philippines':
+    allowed_domain_names = ["mb.com.ph", "inquirer.net"]
+
 
 # not accessible due to DNS lookup error or the webpage had since migrated to other subdomains
 inaccessible_subdomain_names = ["olympianbuilder.straitstimes.com", "ststaff.straitstimes.com", "media.straitstimes.com",
