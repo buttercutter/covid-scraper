@@ -61,6 +61,7 @@ irrelevant_subdomain_names = ["channelnewsasia.com/watch/", "cnaluxury.channelne
                               "channelnewsasia.com/author", "straitstimes.com/author",
                               "channelnewsasia.com/women/",
                               "channelnewsasia.com/about-us",
+                              "entertainment.inquirer.net",
                               "mb.com.ph/our-company"]
 
 # articles that are published with only a title, and without any body content and publish date
@@ -112,21 +113,21 @@ class CovidNewsSpider(scrapy.Spider):
                 #'https://www.pna.gov.ph/',  # webite server seems to block scraping activity
                 #'https://www.manilatimes.net/search?query=covid',  # forbidden by the /search rule in robots.txt
                 #'https://www.manilatimes.net/',  # almost all articles requires digital subscription fees
-                'https://www.inquirer.net/',
-                'https://mb.com.ph/search-results?s=covid'
+                #'https://mb.com.ph/search-results?s=covid',  # splash is not working yet
+                'https://www.inquirer.net/'
             ]
 
 
     custom_settings = {
         'DOWNLOADER_MIDDLEWARES': {
-            'scrapy_splash.SplashCookiesMiddleware': 723,
-            'scrapy_splash.SplashMiddleware': 725,
+            #'scrapy_splash.SplashCookiesMiddleware': 723,
+            #'scrapy_splash.SplashMiddleware': 725,
             'covidnews.middlewares.GzipRetryMiddleware': 543,
             'covidnews.middlewares.ForgivingHttpCompressionMiddleware': 810,
         },
 
         'SPIDER_MIDDLEWARES': {
-            'scrapy_splash.SplashDeduplicateArgsMiddleware': 100,
+            #'scrapy_splash.SplashDeduplicateArgsMiddleware': 100,
         },
     }
 
@@ -388,6 +389,9 @@ class CovidNewsSpider(scrapy.Spider):
                 #more_links = response.css('div.queryly_item_row > a::attr(href)').getall()
                 more_links = response.css('a:contains("Next Page")::attr(href)').get()
 
+        elif 'inquirer.net' in response.url:
+            more_links = response.css('a::attr(href)').getall()
+
         elif 'mb.com.ph' in response.url:
             if SEARCH_ENTIRE_WEBSITE:
                 more_links = response.css('a::attr(href)').getall()
@@ -417,6 +421,7 @@ class CovidNewsSpider(scrapy.Spider):
         url = re.sub(r'^https?://www.straitsthttps?/', 'https://', url)
 
         # Fix common typo in domain name
+        url = re.sub(r"^ttps?://", "https://", url)
         url = re.sub(r"https://ww\.", "https://www.", url)
         url = re.sub(r"https?://www\.\.", "https://www.", url)
         url = re.sub(r'^https?://wwww', 'https://www', url)
@@ -545,7 +550,7 @@ class CovidNewsSpider(scrapy.Spider):
             #return response.css('div.queryly_item_row')
 
         elif 'inquirer.net' in response.url:
-            return response.css('.fix-leftbox, .fix-m-box, .tr_boxs3, .fv-ed-box, .op-columns-box, .image-with-text, .buzz-box, .inqf-box, .data-tb-region-item, div.items[data-tb-region-item], .cmr-bg, .ncg-box')
+            return response.css('.flx-leftbox, .flx-m-box, #tr_boxs3, #fv-ed-box, #op-columns-box, .image-with-text, #buzz-box, #inqf-box, div[data-tb-region-item], div.items[data-tb-region-item], #cmr-bg, #ncg-box')
 
         elif 'mb.com.ph' in response.url:
             print("parse_articles() for mb.com.ph")
@@ -622,11 +627,12 @@ class CovidNewsSpider(scrapy.Spider):
             link = article.css('a::attr(href)').get()
 
         elif 'inquirer.net' in response.url:
-            title = article.css('.fix-m-head::text, .fix-l-head::text, .tr_boxs3.h2 a::text, .data-tb-region-item.h3 a::text, .items[data-tb-region-item].h3 a::text, .cmr-info.h1 a::text, .ncg-info.h1 a::text, h1.entry-title::text').get()
-            date = article.css('.tr_boxs3.h6 ::text').get() or \
-                    article.css('.cmr-info.h3::text').get() or \
-                    article.css('.ncg-info.ncg-postdate::text').get() or \
-                    article.css('.data-tb-region-item.h4::text').get()
+            title = article.css('.flx-m-head::text, .flx-l-head::text, #tr_boxs3 h2 a::text, #inqf-info h2::text, #fv-ed-box h2 a::text, #buzz-info h2::text, div.items[data-tb-region-item] h3 a::text, div[data-tb-region-item] h3 a::text, #cmr-info h1 a::text, #cmr-info h2 a::text, #ncg-info h1 a::text, h1.entry-title::text').get()
+            date = article.css('#tr_boxs3 h6 ::text').get() or \
+                    article.css('.cmr-info h3::text').get() or \
+                    article.css('#ncg-info #ncg-postdate::text').get() or \
+                    article.css('div[data-tb-region-item] h4::text').get() or \
+                    article.css('div.items[data-tb-region-item] h4::text').get()
 
             link = article.css('a::attr(href)').get()
 
@@ -864,8 +870,11 @@ class CovidNewsSpider(scrapy.Spider):
                         date = date.split('Published: ')[-1]
 
             elif 'inquirer.net' in response.url:
-                title = response.css('h1.entry-title::text').get()
+                if title is None:
+                    title = response.css('h1.entry-title::text, h1[class="elementor-heading-title elementor-size-default"]::text, div[id="landing-headline"] h1::text, div[class="single-post-banner-inner"] h1::text').get()
+
                 body = response.css('p ::text').getall()
+
                 if date is None:
                     print("inquirer.net date is None !!!")
 
