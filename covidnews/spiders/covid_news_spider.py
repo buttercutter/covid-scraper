@@ -49,7 +49,9 @@ inaccessible_subdomain_names = ["olympianbuilder.straitstimes.com", "ststaff.str
                                 "stcommunities.straitstimes.com", "euro2016.straitstimes.com",
                                 "awsstaff.straitstimes.com", "eee.straitstimes.com",
                                 "prdstaff.straitstimes.com", "staff.straitstimes.com",
-                                "stompcms.straitstimes.com"]
+                                "stompcms.straitstimes.com",
+                                "inqshop.inquirer.net", "misc.inquirer.net", "nment.inquirer.net"
+                                ]
 
 # these subdomains contains irrelevant contents for region-based, text-based media article scraping
 irrelevant_subdomain_names = ["channelnewsasia.com/watch/", "cnaluxury.channelnewsasia.com",
@@ -426,6 +428,9 @@ class CovidNewsSpider(scrapy.Spider):
         url = re.sub(r'^https?://www.straitsthttps?/', 'https://', url)
 
         # Fix common typo in domain name
+        url = re.sub(r"^ps?://", "https://", url)
+        url = re.sub(r"^vhttps?://", "https://", url)
+        url = re.sub(r"^xhttps?://", "https://", url)
         url = re.sub(r"^ttps?://", "https://", url)
         url = re.sub(r"https://ww\.", "https://www.", url)
         url = re.sub(r"https?://www\.\.", "https://www.", url)
@@ -433,6 +438,8 @@ class CovidNewsSpider(scrapy.Spider):
         url = re.sub(r"https?://taff\.straitstimes\.com/", "https://www.straitstimes.com/", url)
         url = re.sub(r"https?://wwwf\.straitstimes\.com/", "https://www.straitstimes.com/", url)
         url = re.sub(r"https?://wwwstraitstimes\.com/", "https://www.straitstimes.com/", url)
+        url = re.sub(r"https?://lifestyle\.inq@inquirer\.net", "https://lifestyle.inquirer.net", url)
+        url = re.sub(r"https?://usiness\.inquirer\.net", "https://business.inquirer.net", url)
 
         if not url.startswith("http"):
             url = urljoin(default_url, url)
@@ -555,7 +562,31 @@ class CovidNewsSpider(scrapy.Spider):
             #return response.css('div.queryly_item_row')
 
         elif 'inquirer.net' in response.url:
-            return response.css('.flx-leftbox, .flx-m-box, #tr_boxs3, #fv-ed-box, #op-columns-box, .image-with-text, #buzz-box, #inqf-box, div[data-tb-region-item], div.items[data-tb-region-item], #cmr-bg, #ncg-box')
+            print("parse_articles() for inquirer.net")
+
+            if response.url == 'https://cebudailynews.inquirer.net':
+
+                body = response.css('*').getall()
+
+                if body:
+                    body = [s.strip() for s in body]
+                    body = '\n'.join(body)
+                    body = body.strip()
+
+                    body = self.remove_photograph_credit(body)
+                    body = self.remove_footnote(body)
+
+
+                # Write the scraped html response to local file for debugging purpose
+                self.write_to_local_data(
+                                            link = response.url,
+                                            title = 'cebudailynews_inquirer_net_debug',
+                                            body = body,
+                                            date = '1 October 2020',
+                                            response = response,
+                                        )
+
+            return response.css('.flx-leftbox, .flx-m-box, #tr_boxs3, #fv-ed-box, #op-columns-box, .image-with-text, #buzz-box, #inqf-box, div[data-tb-region-item], div.items[data-tb-region-item], #cmr-bg, #cmr-box, #ncg-box, #cdn-col-box, #cdn-cat-box, #cdn-g-box, #cat-info, .list-head, #trend_title, #usa-add-gallery > a')
 
         elif 'mb.com.ph' in response.url:
             print("parse_articles() for mb.com.ph")
@@ -632,14 +663,26 @@ class CovidNewsSpider(scrapy.Spider):
             link = article.css('a::attr(href)').get()
 
         elif 'inquirer.net' in response.url:
-            title = article.css('.flx-m-head::text, .flx-l-head::text, #tr_boxs3 h2 a::text, #inqf-info h2::text, #fv-ed-box h2 a::text, #buzz-info h2::text, div.items[data-tb-region-item] h3 a::text, div[data-tb-region-item] h3 a::text, #cmr-info h1 a::text, #cmr-info h2 a::text, #ncg-info h1 a::text, h1.entry-title::text').get()
+            title = article.css('.flx-m-head::text, .flx-l-head::text, #tr_boxs3 h2 a::text, #inqf-info h2::text, #fv-ed-box h2 a::text, #buzz-info h2::text, div.items[data-tb-region-item] h3 a::text, div[data-tb-region-item] h3 a::text, #cmr-info h1 a::text, #cmr-info h2 a::text, #cmr-info h2::text, #ncg-info h1 a::text, #cgb-head h1::text, #cdn-col-box h2 a::text, #cdn-cat-box h2::text, #cat-info h2::text, .list-head a::text, #trend_title h2 a::text, h1.entry-title::text').get()
             date = article.css('#tr_boxs3 h6 ::text').get() or \
-                    article.css('.cmr-info h3::text').get() or \
+                    article.css('#cmr-info h3::text').get() or \
                     article.css('#ncg-info #ncg-postdate::text').get() or \
+                    article.css('#cdn-col-box #col-post-date::text').get() or \
+                    article.css('#cat-info #cat-pt::text').get() or \
+                    article.css('#cdn-cat-box #cb-pt::text').get() or \
+                    article.css('#trend_title h3::text').get() or \
                     article.css('div[data-tb-region-item] h4::text').get() or \
                     article.css('div.items[data-tb-region-item] h4::text').get()
 
-            link = article.css('a::attr(href)').get()
+            # Get onclick url
+            onclick_url = response.css('#cmr-box::attr(onclick)').get()
+
+            # Extract url from onclick attribute
+            if onclick_url:
+                link = re.search(r"window.open\('(.*?)'", onclick_url).group(1)
+            else:
+                link = article.css('a::attr(href)').get()
+
 
         elif 'mb.com.ph' in response.url:
             title = article.css('.mb-font-article-title a::text').get() or \
@@ -659,6 +702,9 @@ class CovidNewsSpider(scrapy.Spider):
             title = None
             date = None
             link = None
+
+        if title:
+            title = title.strip()  # to remove unnecessary whitespace or newlines characters
 
         if date:
             date = date.strip()  # to remove unnecessary whitespace or newlines characters
@@ -685,6 +731,7 @@ class CovidNewsSpider(scrapy.Spider):
 
         else:
             article_url = link
+            print("departing to get_article_content()")
 
             yield SplashRequest(
                 url=article_url,
@@ -708,7 +755,7 @@ class CovidNewsSpider(scrapy.Spider):
         text = re.sub(r"\(Image: .+?\)", "", text)
         text = re.sub(r"\(Photo: .+?\)", "", text)
         text = re.sub(r"\(Photo by .+?\)", "", text)
-        text = re.sub(r"\(AP Photo .+?\)", "", text)
+        text = re.sub(r"\(AP Photo.+?\)", "", text)
         text = re.sub(r"\(File photo: .+?\)", "", text)
         text = re.sub(r"File photo of .+?", "", text)
         text = re.sub(r"FILE PHOTO: .+?File Photo", "", text)
@@ -754,6 +801,7 @@ class CovidNewsSpider(scrapy.Spider):
             "catch the olympics games",
             "cna women is a section on cna",
             "Write to us at",
+            "Subscribe to",
             "copyright© mediacorp 2023"
         ]
 
@@ -819,7 +867,7 @@ class CovidNewsSpider(scrapy.Spider):
 
     def get_article_content(self, response):
         # retrieves article's detailed title and body properly
-
+        print("arrived at get_article_content()")
         # Access the additional data here
         title = response.meta['title']
         date = response.meta['date']
@@ -875,6 +923,7 @@ class CovidNewsSpider(scrapy.Spider):
                         date = date.split('Published: ')[-1]
 
             elif 'inquirer.net' in response.url:
+                print("get_article_content for inquirer")
                 if title is None:
                     title = response.css('h1.entry-title::text, h1[class="elementor-heading-title elementor-size-default"]::text, div[id="landing-headline"] h1::text, div[class="single-post-banner-inner"] h1::text').get()
 
