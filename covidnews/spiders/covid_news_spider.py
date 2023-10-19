@@ -33,7 +33,7 @@ SKIP_CDX = True
 
 # Excludes search URL results that renders the following files extensions
 excluded_file_extensions = [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".pdf", ".xls", ".mp3", ".mp4", ".mov",
-                            ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".zip"]
+                            ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".zip", ".webp", ".webm"]
 
 # Only parses URLs within these domains
 if search_country == 'singapore':
@@ -50,7 +50,8 @@ inaccessible_subdomain_names = ["olympianbuilder.straitstimes.com", "ststaff.str
                                 "awsstaff.straitstimes.com", "eee.straitstimes.com",
                                 "prdstaff.straitstimes.com", "staff.straitstimes.com",
                                 "stompcms.straitstimes.com",
-                                "inqshop.inquirer.net", "misc.inquirer.net", "nment.inquirer.net"
+                                "inqshop.inquirer.net", "misc.inquirer.net", "nment.inquirer.net",
+                                "inqpop.inquirer.net"
                                 ]
 
 # these subdomains contains irrelevant contents for region-based, text-based media article scraping
@@ -428,6 +429,7 @@ class CovidNewsSpider(scrapy.Spider):
         url = re.sub(r'^https?://www.straitsthttps?/', 'https://', url)
 
         # Fix common typo in domain name
+        url = re.sub(r"^tps?://", "https://", url)
         url = re.sub(r"^ps?://", "https://", url)
         url = re.sub(r"^vhttps?://", "https://", url)
         url = re.sub(r"^xhttps?://", "https://", url)
@@ -564,7 +566,7 @@ class CovidNewsSpider(scrapy.Spider):
         elif 'inquirer.net' in response.url:
             print("parse_articles() for inquirer.net")
 
-            if response.url == 'https://cebudailynews.inquirer.net':
+            if response.url == 'https://cebudailynews.inquirer.net/':
 
                 body = response.css('*').getall()
 
@@ -586,7 +588,7 @@ class CovidNewsSpider(scrapy.Spider):
                                             response = response,
                                         )
 
-            return response.css('.flx-leftbox, .flx-m-box, #tr_boxs3, #fv-ed-box, #op-columns-box, .image-with-text, #buzz-box, #inqf-box, div[data-tb-region-item], div.items[data-tb-region-item], #cmr-bg, #cmr-box, #ncg-box, #cdn-col-box, #cdn-cat-box, #cdn-g-box, #cat-info, .list-head, #trend_title, #usa-add-gallery > a')
+            return response.css('.flx-leftbox, .flx-m-box, #tr_boxs3, #fv-ed-box, #op-columns-box, .image-with-text, #buzz-box, #inqf-box, div[data-tb-region-item], div.items[data-tb-region-item], #cmr-bg, #cmr-box, #ncg-box, #cdn-col-box, #cdn-g-box, .list-head, #trend_title, #usa-add-gallery > a, #cdn-cat-wrap > a')
 
         elif 'mb.com.ph' in response.url:
             print("parse_articles() for mb.com.ph")
@@ -681,7 +683,8 @@ class CovidNewsSpider(scrapy.Spider):
             if onclick_url:
                 link = re.search(r"window.open\('(.*?)'", onclick_url).group(1)
             else:
-                link = article.css('a::attr(href)').get()
+                link = article.css('a::attr(href)').get() or \
+                        article.css('#cgb-head h1::attr(data-vr-contentbox-url)').get()
 
 
         elif 'mb.com.ph' in response.url:
@@ -932,6 +935,7 @@ class CovidNewsSpider(scrapy.Spider):
                 if date is None:
                     print("inquirer.net date is None !!!")
 
+                    # sometimes there could a meaningless <span> with a single text character
                     if response.css('div#m-pd2 > span:nth-child(2)::text').get() and len(response.css('div#m-pd2 > span:nth-child(2)::text').get()) > 1:
                         date = response.css('div#m-pd2 > span:nth-child(2)::text').get()
                     elif response.css('div#m-pd2 > span:nth-child(3)::text').get() and len(response.css('div#m-pd2 > span:nth-child(3)::text').get()) > 1:
