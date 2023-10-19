@@ -414,7 +414,7 @@ class CovidNewsSpider(scrapy.Spider):
         else:
             more_links = None
 
-        print("more_links = ", more_links)
+        #print("more_links = ", more_links)
         return more_links
 
 
@@ -431,6 +431,7 @@ class CovidNewsSpider(scrapy.Spider):
         # Fix common typo in domain name
         url = re.sub(r"^tps?://", "https://", url)
         url = re.sub(r"^ps?://", "https://", url)
+        url = re.sub(r"^s?://", "https://", url)
         url = re.sub(r"^vhttps?://", "https://", url)
         url = re.sub(r"^xhttps?://", "https://", url)
         url = re.sub(r"^ttps?://", "https://", url)
@@ -477,7 +478,7 @@ class CovidNewsSpider(scrapy.Spider):
         else:
             if not INTERNETARCHIVE_FULL_TEXT:
                 articles = self.parse_articles(response)
-            print("articles = ", articles)
+            #print("articles = ", articles)
 
         if articles is not None:
             articles = list(articles)
@@ -507,9 +508,9 @@ class CovidNewsSpider(scrapy.Spider):
             # https://https://www.domain.com/subdirectory
             # https://ww.domain.com/subdirectory
             # https://https://subdirectory
-            print(f"Before fix_url(), link : {link} is of type : {type(link)}")
+            #print(f"Before fix_url(), link : {link} is of type : {type(link)}")
             link = self.fix_url(link, response.url)
-            print(f"After fix_url(), link : {link} is of type : {type(link)}")
+            #print(f"After fix_url(), link : {link} is of type : {type(link)}")
             next_pages_url.append(link)
 
         for next_page_url in next_pages_url:
@@ -528,8 +529,8 @@ class CovidNewsSpider(scrapy.Spider):
                     print(f"skipped {link} inside parse() B")
                     continue
 
-                print("response.url = ", response.url)
-                print("next_page_url = ", next_page_url)
+                #print("response.url = ", response.url)
+                #print("next_page_url = ", next_page_url)
 
                 yield SplashRequest(
                     #response.urljoin(next_page),
@@ -588,7 +589,7 @@ class CovidNewsSpider(scrapy.Spider):
                                             response = response,
                                         )
 
-            return response.css('.flx-leftbox, .flx-m-box, #tr_boxs3, #fv-ed-box, #op-columns-box, .image-with-text, #buzz-box, #inqf-box, div[data-tb-region-item], div.items[data-tb-region-item], #cmr-bg, #cmr-box, #ncg-box, #cdn-col-box, #cdn-g-box, .list-head, #trend_title, #usa-add-gallery > a, #cdn-cat-wrap > a')
+            return response.css('.flx-leftbox, .flx-m-box, #tr_boxs3, #fv-ed-box, #op-columns-box, .image-with-text, #buzz-box, #inqf-box, div[data-tb-region-item], div.items[data-tb-region-item], #cmr-bg, #cmr-box, #ncg-box, #cdn-col-box, #cdn-g-box, .list-head, #trend_title, #usa-add-gallery > a, #cdn-cat-wrap > a, #ch-ls-head')
 
         elif 'mb.com.ph' in response.url:
             print("parse_articles() for mb.com.ph")
@@ -665,9 +666,10 @@ class CovidNewsSpider(scrapy.Spider):
             link = article.css('a::attr(href)').get()
 
         elif 'inquirer.net' in response.url:
-            title = article.css('.flx-m-head::text, .flx-l-head::text, #tr_boxs3 h2 a::text, #inqf-info h2::text, #fv-ed-box h2 a::text, #buzz-info h2::text, div.items[data-tb-region-item] h3 a::text, div[data-tb-region-item] h3 a::text, #cmr-info h1 a::text, #cmr-info h2 a::text, #cmr-info h2::text, #ncg-info h1 a::text, #cgb-head h1::text, #cdn-col-box h2 a::text, #cdn-cat-box h2::text, #cat-info h2::text, .list-head a::text, #trend_title h2 a::text, h1.entry-title::text').get()
+            title = article.css('.flx-m-head::text, .flx-l-head::text, #tr_boxs3 h2 a::text, #inqf-info h2::text, #fv-ed-box h2 a::text, #buzz-info h2::text, div.items[data-tb-region-item] h3 a::text, div[data-tb-region-item] h3 a::text, #cmr-info h1 a::text, #cmr-info h2 a::text, #cmr-info h2::text, #ncg-info h1 a::text, #cgb-head h1::text, #cdn-col-box h2 a::text, #cdn-cat-box h2::text, #cat-info h2::text, .list-head a::text, #trend_title h2 a::text, h1.entry-title::text, #ch-ls-head h2 a::text').get()
             date = article.css('#tr_boxs3 h6 ::text').get() or \
                     article.css('#cmr-info h3::text').get() or \
+                    article.css('#ch-ls-head #ch-postdate span:first-child::text').get() or \
                     article.css('#ncg-info #ncg-postdate::text').get() or \
                     article.css('#cdn-col-box #col-post-date::text').get() or \
                     article.css('#cat-info #cat-pt::text').get() or \
@@ -819,7 +821,7 @@ class CovidNewsSpider(scrapy.Spider):
             if len(buffer) > window_size:
                 buffer.pop(0)
 
-            print(f"inside remove_footnote(), buffer = {buffer}, i = {i}")
+            #print(f"inside remove_footnote(), buffer = {buffer}, i = {i}")
 
             # Check if phrases are in the buffer
             buffer_string = ' '.join(buffer).lower()
@@ -831,37 +833,37 @@ class CovidNewsSpider(scrapy.Spider):
                     # Find the position of the phrase in the buffer string
                     phrase_start = buffer_string.find(phrase)
                     phrase_end = phrase_start + len(phrase)
-                    print(f"inside remove_footnote(), phrase_start = {phrase_start}, phrase_end = {phrase_end}")
+                    #print(f"inside remove_footnote(), phrase_start = {phrase_start}, phrase_end = {phrase_end}")
 
                     # Determine which lines those positions correspond to in the buffer
                     line_lengths = [len(line) + 1 for line in buffer]  # +1 for '\n'
                     line_start_positions = [sum(line_lengths[:i]) for i in range(len(buffer))]
                     line_end_positions = [sum(line_lengths[:i+1]) for i in range(len(buffer))]
-                    print(f"inside remove_footnote(), line_lengths = {line_lengths}, line_start_positions = {line_start_positions}, line_end_positions = {line_end_positions}")
+                    #print(f"inside remove_footnote(), line_lengths = {line_lengths}, line_start_positions = {line_start_positions}, line_end_positions = {line_end_positions}")
 
                     # Remove all lines that are part of the phrase
                     for start, end in reversed(list(zip(line_start_positions, line_end_positions))):
                         if start <= phrase_start < end or start < phrase_end <= end:
                             if buffer:  # Check if buffer is not empty before popping
                                 buffer.pop(line_start_positions.index(start))
-                                print(f"inside remove_footnote(), after pop(), buffer = {buffer}")
+                                #print(f"inside remove_footnote(), after pop(), buffer = {buffer}")
                             else:
                                 break
 
                         else:
                             # Replace lines in the original text with the modified buffer
-                            print(f"inside remove_footnote(), before cleaning the footnote phrase, lines[{i-window_size+1}:{i-window_size+len(buffer)+1}] = {lines[i-window_size:i-window_size+len(buffer)+1]}")
+                            #print(f"inside remove_footnote(), before cleaning the footnote phrase, lines[{i-window_size+1}:{i-window_size+len(buffer)+1}] = {lines[i-window_size:i-window_size+len(buffer)+1]}")
                             lines[i-window_size+1:i-window_size+len(buffer)+1] = buffer
-                            print(f"inside remove_footnote(), after cleaning the footnote phrase, lines[{i-window_size+1}:{i-window_size+len(buffer)+1}] = {lines[i-window_size+1:i-window_size+len(buffer)+1]}")
+                            #print(f"inside remove_footnote(), after cleaning the footnote phrase, lines[{i-window_size+1}:{i-window_size+len(buffer)+1}] = {lines[i-window_size+1:i-window_size+len(buffer)+1]}")
 
                             # Remove all subsequent text after footnote phrase
-                            print(f"inside remove_footnote(), before cleaning the subsequent text, lines[{i-window_size+len(buffer)+1}:] = {lines[i-window_size+len(buffer)+1:]}")
+                            #print(f"inside remove_footnote(), before cleaning the subsequent text, lines[{i-window_size+len(buffer)+1}:] = {lines[i-window_size+len(buffer)+1:]}")
                             lines[i-window_size+len(buffer)+1:] = ''
-                            print(f"inside remove_footnote(), after cleaning the subsequent text, lines[{i-window_size+len(buffer)+1}:] = {lines[i-window_size+len(buffer)+1:]}")
+                            #print(f"inside remove_footnote(), after cleaning the subsequent text, lines[{i-window_size+len(buffer)+1}:] = {lines[i-window_size+len(buffer)+1:]}")
 
                             # Join the lines back into a single string
                             cleaned_text = "\n".join(lines)
-                            print(f"inside remove_footnote(), cleaned_text = {cleaned_text}")
+                            #print(f"inside remove_footnote(), cleaned_text = {cleaned_text}")
                             return self.remove_footnote(cleaned_text)  # to make sure ALL footnote phrases are removed completely
 
         # return the original text if no footnote was found
