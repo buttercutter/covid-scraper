@@ -51,7 +51,8 @@ inaccessible_subdomain_names = ["olympianbuilder.straitstimes.com", "ststaff.str
                                 "prdstaff.straitstimes.com", "staff.straitstimes.com",
                                 "stompcms.straitstimes.com",
                                 "inqshop.inquirer.net", "misc.inquirer.net", "nment.inquirer.net",
-                                "inqpop.inquirer.net"
+                                "inqpop.inquirer.net", "newyorktimes.inquirer.net", "showbizandstyle.inquirer.net",
+                                "vouchers.inquirer.net"
                                 ]
 
 # these subdomains contains irrelevant contents for region-based, text-based media article scraping
@@ -95,6 +96,11 @@ class CovidNewsSpider(scrapy.Spider):
 
     if TEST_SPECIFIC:
         start_urls = [
+                      "https://opinion.inquirer.net/",  # date is None
+                      "https://business.inquirer.net/column/for-laws-sake",  # date is None
+                      "https://lifestyle.inquirer.net/478043/bounty-fresh-chickens-chicky-stars-in-bgcs-3d-billboard/",  # dateutil.parser._parser.ParserError: Unknown string format: lifestyle
+                      "https://technology.inquirer.net/126933/how-to-use-free-chatgpt-custom-instructions",  # dateutil.parser._parser.ParserError: String does not contain a date:
+                      "https://technology.inquirer.net/126943/gptbot-web-crawler",  # dateutil.parser._parser.ParserError: String does not contain a date
                       "https://www.straitstimes.com/singapore/jobs/government-unions-employer-groups-start-work-on-guidelines-on-flexible-work-arrangements",  # title.lower()
                       "https://www.channelnewsasia.com/advertorial/building-global-healthcare-ecosystem-care-good-2943211",  # AttributeError: 'list' object has no attribute 'lower'
                       "https://www.channelnewsasia.com/remarkableliving/kausmo-educating-singapore-diners-about-food-wastage-1882711",  # AttributeError: 'list' object has no attribute 'lower'
@@ -139,48 +145,53 @@ class CovidNewsSpider(scrapy.Spider):
         },
     }
 
-    js_script = """
-        function main(splash, args)
+    if TEST_SPECIFIC:
 
-            -- Go to page
-            splash:go(splash.args.url)
+        js_script = """
+            function main(splash, args)
 
-            -- Wait for 7 seconds
-            splash:wait(7.0)
+                -- Go to page
+                splash:go(splash.args.url)
 
-            -- Print url
-            print("splash:url() = ", splash:url())
+                -- Wait for 7 seconds
+                splash:wait(7.0)
 
-            -- Return HTML after waiting
-            return splash:html()
+                -- Print url
+                print("splash:url() = ", splash:url())
 
-        end
-        """
+                -- for visual debugging purpose
+                splash:set_viewport_full()
+                local png = splash:png()
 
-    js_script_test_specific = """
-        function main(splash, args)
+                return {
+                    url = splash:url(),
+                    png = png,
+                    html = splash:html(),
+                }
 
-            -- Go to page
-            splash:go(splash.args.url)
+            end
+            """
 
-            -- Wait for 7 seconds
-            splash:wait(7.0)
+    else:
 
-            -- Print url
-            print("splash:url() = ", splash:url())
+        js_script = """
+            function main(splash, args)
 
-            -- for visual debugging purpose
-            splash:set_viewport_full()
-            local png = splash:png()
+                -- Go to page
+                splash:go(splash.args.url)
 
-            return {
-                url = splash:url(),
-                png = png,
-                html = splash:html(),
-            }
+                -- Wait for 7 seconds
+                splash:wait(7.0)
 
-        end
-        """
+                -- Print url
+                print("splash:url() = ", splash:url())
+
+                -- Return HTML after waiting
+                return splash:html()
+
+            end
+            """
+
 
     def search_archives(self, search_keywords, countries, creators, types, languages):
 
@@ -327,10 +338,10 @@ class CovidNewsSpider(scrapy.Spider):
                 if TEST_SPECIFIC:
                     yield SplashRequest(
                             url,
-                            callback=self.get_article_content,
+                            callback=self.parse,
                             meta={'title': None, 'date': None, 'article_url': url},  # Pass additional data here, assigned None here for testing purpose
                             endpoint='execute',  # for closing advertising overlay page to get to desired page
-                            args={'lua_source': self.js_script_test_specific,
+                            args={'lua_source': self.js_script,
                                   'lua_source_isolated': False,  # for showing self.js_script print() output
                                   'adblock': True,
                                   'wait': 10,
@@ -382,7 +393,7 @@ class CovidNewsSpider(scrapy.Spider):
             domain_name not in allowed_domain_names:
             # skipping urls
             # This is a workaround to avoid scraping url links inside irrelevant pages redirected from other urls
-            print(f"skipped {link} inside get_next_pages()")
+            #print(f"skipped {link} inside get_next_pages()")
             return None
 
         if 'channelnewsasia' in response.url:
@@ -425,6 +436,7 @@ class CovidNewsSpider(scrapy.Spider):
         url = re.sub(r"https?://\(https?:?//?", "https://", url)
         url = re.sub(r"https?://ttps?//?", "https://", url)
         url = re.sub(r'^http://%22https/', 'https:/', url)
+        url = re.sub(r'^https?https?://', 'https://', url)
         url = re.sub(r'^https?://www.https?/', 'https://', url)
         url = re.sub(r'^https?://www.straitsthttps?/', 'https://', url)
 
@@ -443,6 +455,9 @@ class CovidNewsSpider(scrapy.Spider):
         url = re.sub(r"https?://wwwstraitstimes\.com/", "https://www.straitstimes.com/", url)
         url = re.sub(r"https?://lifestyle\.inq@inquirer\.net", "https://lifestyle.inquirer.net", url)
         url = re.sub(r"https?://usiness\.inquirer\.net", "https://business.inquirer.net", url)
+        url = re.sub(r"https?://ebudailynews\.inquirer\.net", "https://cebudailynews.inquirer.net", url)
+        url = re.sub(r"https?://www\.bandera\.inquirer\.net", "https://bandera.inquirer.net", url)
+        url = re.sub(r"https?://www\.cebudailynews\.inquirer\.net", "https://cebudailynews.inquirer.net", url)
 
         if not url.startswith("http"):
             url = urljoin(default_url, url)
@@ -473,7 +488,8 @@ class CovidNewsSpider(scrapy.Spider):
             any(subdomain_name in link for subdomain_name in inaccessible_subdomain_names) or \
             domain_name not in allowed_domain_names:
             # Skip links
-            print(f"skipped {link} inside parse() A")
+            #print(f"skipped {link} inside parse() A")
+            pass
 
         else:
             if not INTERNETARCHIVE_FULL_TEXT:
@@ -487,12 +503,16 @@ class CovidNewsSpider(scrapy.Spider):
 
         print(f"len(articles) = {len(articles)}")
 
-        for article in articles:
-            yield from self.parse_article(article, response)
+        if TEST_SPECIFIC and response.url in self.start_urls:
+            yield from self.parse_article(response.css('*'), response)
+
+        else:
+            for article in articles:
+                yield from self.parse_article(article, response)
 
         next_pages = None
 
-        if not INTERNETARCHIVE_FULL_TEXT:
+        if not INTERNETARCHIVE_FULL_TEXT and not TEST_SPECIFIC:
             # Get the next pages URLs and yield new requests
             next_pages = self.get_next_pages(response)
 
@@ -526,7 +546,7 @@ class CovidNewsSpider(scrapy.Spider):
                     any(subdomain_name in link for subdomain_name in inaccessible_subdomain_names) or \
                     domain_name not in allowed_domain_names:
                     # Skip links
-                    print(f"skipped {link} inside parse() B")
+                    #print(f"skipped {link} inside parse() B")
                     continue
 
                 #print("response.url = ", response.url)
@@ -589,7 +609,7 @@ class CovidNewsSpider(scrapy.Spider):
                                             response = response,
                                         )
 
-            return response.css('.flx-leftbox, .flx-m-box, #tr_boxs3, #fv-ed-box, #op-columns-box, .image-with-text, #buzz-box, #inqf-box, div[data-tb-region-item], div.items[data-tb-region-item], #cmr-bg, #cmr-box, #ncg-box, #cdn-col-box, #cdn-g-box, .list-head, #trend_title, #usa-add-gallery > a, #cdn-cat-wrap > a, #ch-ls-head')
+            return response.css('.flx-leftbox, .flx-m-box, #tr_boxs3, #fv-ed-box, #op-columns-box, .image-with-text, #buzz-box, #inqf-box, div[data-tb-region-item], div.items[data-tb-region-item], #cmr-bg, #cmr-box, #ncg-box, #cdn-col-box, #cdn-g-box, .list-head, #trend_title, #usa-add-gallery > a, #cdn-cat-wrap > a, #op-sec h3, #ch-ls-head')
 
         elif 'mb.com.ph' in response.url:
             print("parse_articles() for mb.com.ph")
@@ -634,6 +654,8 @@ class CovidNewsSpider(scrapy.Spider):
             return 'CNA'
         elif 'straitstimes' in response.url:
             return 'ST'
+        elif 'inquirer.net' in response.url:
+            return 'INQ'
         elif 'mb.com.ph' in response.url:
             return 'MB'
         elif 'archive.org' in response.url:
@@ -641,7 +663,6 @@ class CovidNewsSpider(scrapy.Spider):
 
 
     def parse_article(self, article, response):
-
         if 'channelnewsasia' in response.url:
             title = article.css('title::text').get() or \
                     article.css('h1.entry-title::text').get() or \
@@ -666,8 +687,9 @@ class CovidNewsSpider(scrapy.Spider):
             link = article.css('a::attr(href)').get()
 
         elif 'inquirer.net' in response.url:
-            title = article.css('.flx-m-head::text, .flx-l-head::text, #tr_boxs3 h2 a::text, #inqf-info h2::text, #fv-ed-box h2 a::text, #buzz-info h2::text, div.items[data-tb-region-item] h3 a::text, div[data-tb-region-item] h3 a::text, #cmr-info h1 a::text, #cmr-info h2 a::text, #cmr-info h2::text, #ncg-info h1 a::text, #cgb-head h1::text, #cdn-col-box h2 a::text, #cdn-cat-box h2::text, #cat-info h2::text, .list-head a::text, #trend_title h2 a::text, h1.entry-title::text, #ch-ls-head h2 a::text').get()
-            date = article.css('#tr_boxs3 h6 ::text').get() or \
+            title = article.css('.flx-m-head::text, .flx-l-head::text, #tr_boxs3 h2 a::text, #inqf-info h2::text, #fv-ed-box h2 a::text, #buzz-info h2::text, div.items[data-tb-region-item] h3 a::text, div[data-tb-region-item] h3 a::text, #cmr-info h1 a::text, #cmr-info h2 a::text, #cmr-info h2::text, #ncg-info h1 a::text, #cgb-head h1::text, #cdn-col-box h2 a::text, #cdn-cat-box h2::text, #cat-info h2::text, .list-head a::text, #trend_title a::text, #trend_title h2 a::text, h1.entry-title::text, #ch-ls-head h2 a::text, #op-sec h3 a::text').get()
+            date = article.css('.elementor-post-info__item--type-date::text').get() or \
+                    article.css('#tr_boxs3 h6 ::text').get() or \
                     article.css('#cmr-info h3::text').get() or \
                     article.css('#ch-ls-head #ch-postdate span:first-child::text').get() or \
                     article.css('#ncg-info #ncg-postdate::text').get() or \
@@ -678,15 +700,19 @@ class CovidNewsSpider(scrapy.Spider):
                     article.css('div[data-tb-region-item] h4::text').get() or \
                     article.css('div.items[data-tb-region-item] h4::text').get()
 
+            link = None  # just for initialization
+
             # Get onclick url
             onclick_url = response.css('#cmr-box::attr(onclick)').get()
 
             # Extract url from onclick attribute
             if onclick_url:
                 link = re.search(r"window.open\('(.*?)'", onclick_url).group(1)
-            else:
-                link = article.css('a::attr(href)').get() or \
-                        article.css('#cgb-head h1::attr(data-vr-contentbox-url)').get()
+
+            if article.css('a::attr(href)').get() and not article.css('a::attr(href)').get().startswith("?utm_source=(direct)&utm_medium=gallery"):
+                link = article.css('a::attr(href)').get()
+
+            link = link or article.css('#cgb-head h1::attr(data-vr-contentbox-url)').get()
 
 
         elif 'mb.com.ph' in response.url:
@@ -714,6 +740,9 @@ class CovidNewsSpider(scrapy.Spider):
         if date:
             date = date.strip()  # to remove unnecessary whitespace or newlines characters
 
+        if TEST_SPECIFIC and response.url in self.start_urls:
+            link = response.url
+
         if link:
             link = self.fix_url(link, response.url)
             link = link.lower()
@@ -731,29 +760,35 @@ class CovidNewsSpider(scrapy.Spider):
             any(subdomain_name in link for subdomain_name in inaccessible_subdomain_names) or \
             domain_name not in allowed_domain_names:
             # skipping urls
-            print(f"skipped {link} inside parse_article()")
+            #print(f"skipped {link} inside parse_article()")
             yield None
 
         else:
             article_url = link
-            print("departing to get_article_content()")
 
-            yield SplashRequest(
-                url=article_url,
-                callback=self.get_article_content,
-                meta={'title': title, 'date': date, 'article_url': article_url},  # Pass additional data here
-                #endpoint='render.html',  # for non-pure html with javascript
-                endpoint='execute',  # for closing advertising overlay page to get to desired page
-                args={'lua_source': self.js_script,
-                      'lua_source_isolated': False,  # for showing self.js_script print() output
-                      'adblock': True,
-                      'wait': 10,
-                      'resource_timeout': 10,
-                      'timeout': 60  # limit the total time the Lua script can run (optional)
-                     },
-                splash_headers={'X-Splash-Render-HTML': 1},  # for non-pure html with javascript
-                headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,      like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
-            )
+            if TEST_SPECIFIC and article_url not in self.start_urls:
+                print("for testing, do not even scrape the children articles")
+                yield None
+
+            else:
+                print("departing to get_article_content()")
+
+                yield SplashRequest(
+                    url=article_url,
+                    callback=self.get_article_content,
+                    meta={'title': title, 'date': date, 'article_url': article_url},  # Pass additional data here
+                    #endpoint='render.html',  # for non-pure html with javascript
+                    endpoint='execute',  # for closing advertising overlay page to get to desired page
+                    args={'lua_source': self.js_script,
+                          'lua_source_isolated': False,  # for showing self.js_script print() output
+                          'adblock': True,
+                          'wait': 10,
+                          'resource_timeout': 10,
+                          'timeout': 60  # limit the total time the Lua script can run (optional)
+                         },
+                    splash_headers={'X-Splash-Render-HTML': 1},  # for non-pure html with javascript
+                    headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,      like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
+                )
 
 
     def remove_photograph_credit(self, text):
@@ -895,7 +930,7 @@ class CovidNewsSpider(scrapy.Spider):
             any(subdomain_name in link for subdomain_name in inaccessible_subdomain_names) or \
             domain_name not in allowed_domain_names:
             # skipping urls
-            print(f"skipped {link} inside get_article_content()")
+            #print(f"skipped {link} inside get_article_content()")
             yield None
 
         else:
@@ -946,9 +981,15 @@ class CovidNewsSpider(scrapy.Spider):
                     date = date or \
                             response.css('div.art-byline span:last-child::text').get() or \
                             response.css('ul.blog-meta-list > li:nth-child(3) a::text').get() or \
-                            response.css('div.bpdate::text').get() or \
-                            response.css('li[itemprop="datePublished"] span::text').get() or \
-                            response.css('div[id="art_plat"]::text').getall()[-1]
+                            response.css('li[itemprop="datePublished"] span::text').get()
+
+                    if response.css('div[id="art_plat"]::text').getall():
+                        date = date or \
+                                response.css('div[id="art_plat"]::text').getall()[-1]
+
+                    if response.css('div.bpdate::text').getall():
+                        date = date or \
+                                response.css('div.bpdate::text').getall()[-1]
 
             elif 'mb.com.ph' in response.url:
                 body = response.css('p ::text').getall()
@@ -987,7 +1028,8 @@ class CovidNewsSpider(scrapy.Spider):
             else:
                 self.write_to_local_data(link, title, body, date, response)
 
-                # for the purpose of debugging js_script_test_specific
+                '''
+                # for the purpose of debugging js_script
                 if TEST_SPECIFIC:
                     print(f"for debug, type(response) = {type(response)}")
 
@@ -1003,6 +1045,7 @@ class CovidNewsSpider(scrapy.Spider):
                     print("filename = ", filename)
                     with open(filename, 'wb') as f:
                         f.write(base64.b64decode(png))
+                '''
 
                 yield {
                     'title': title,
@@ -1015,7 +1058,9 @@ class CovidNewsSpider(scrapy.Spider):
 
 
     def write_to_local_data(self, link, title, body, date, response):
-        if "day ago" in date.lower() or "days ago" in date.lower() or \
+        if "month ago" in date.lower() or "months ago" in date.lower() or \
+            "week ago" in date.lower() or "weeks ago" in date.lower() or \
+            "day ago" in date.lower() or "days ago" in date.lower() or \
             "hour ago" in date.lower() or "hours ago" in date.lower() or \
             "minute ago" in date.lower() or "minutes ago" in date.lower() or \
             "min ago" in date.lower() or "mins ago" in date.lower() or \
@@ -1035,9 +1080,10 @@ class CovidNewsSpider(scrapy.Spider):
 
         print(f"date = {date}, and published_year = {published_year}, and date_is_within_covid_period = {date_is_within_covid_period}")
 
-        if ((title != None and any(keyword in title.lower() for keyword in search_keywords)) or \
+        if (((title != None and any(keyword in title.lower() for keyword in search_keywords)) or \
             (body != None and any(keyword in body.lower() for keyword in search_keywords))) and \
-            (date_is_within_covid_period):
+            (date_is_within_covid_period)) or \
+            (TEST_SPECIFIC and link in self.start_urls):
             # Create a unique filename for each URL by removing the 'http://', replacing '/' with '_', and adding '.html'
             file_parent_directory = ''
             filename = file_parent_directory + link.replace('http://', '').replace('/', '_') + '.html'
