@@ -33,7 +33,7 @@ SKIP_CDX = True
 
 # Excludes search URL results that renders the following files extensions
 excluded_file_extensions = [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".pdf", ".xls", ".mp3", ".mp4", ".mov",
-                            ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".zip", ".webp", ".webm"]
+                            ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".zip", ".webp", ".webm", ".m4v"]
 
 # Only parses URLs within these domains
 if search_country == 'singapore':
@@ -50,9 +50,11 @@ inaccessible_subdomain_names = ["olympianbuilder.straitstimes.com", "ststaff.str
                                 "awsstaff.straitstimes.com", "eee.straitstimes.com",
                                 "prdstaff.straitstimes.com", "staff.straitstimes.com",
                                 "stompcms.straitstimes.com",
+                                "news.mb.com.ph",
                                 "inqshop.inquirer.net", "misc.inquirer.net", "nment.inquirer.net",
                                 "inqpop.inquirer.net", "newyorktimes.inquirer.net", "showbizandstyle.inquirer.net",
-                                "vouchers.inquirer.net"
+                                "vouchers.inquirer.net", "blogs.inquirer.net", "apec.inquirer.net",
+                                "newsinafo.inquirer.net"
                                 ]
 
 # these subdomains contains irrelevant contents for region-based, text-based media article scraping
@@ -441,11 +443,11 @@ class CovidNewsSpider(scrapy.Spider):
         url = re.sub(r'^https?://www.straitsthttps?/', 'https://', url)
 
         # Fix common typo in domain name
+        url = re.sub(r"^htps?://", "https://", url)
         url = re.sub(r"^tps?://", "https://", url)
         url = re.sub(r"^ps?://", "https://", url)
         url = re.sub(r"^s?://", "https://", url)
-        url = re.sub(r"^vhttps?://", "https://", url)
-        url = re.sub(r"^xhttps?://", "https://", url)
+        url = re.sub(r"^.*https?://", "https://", url)
         url = re.sub(r"^ttps?://", "https://", url)
         url = re.sub(r"https://ww\.", "https://www.", url)
         url = re.sub(r"https?://www\.\.", "https://www.", url)
@@ -692,13 +694,15 @@ class CovidNewsSpider(scrapy.Spider):
                     article.css('#tr_boxs3 h6 ::text').get() or \
                     article.css('#cmr-info h3::text').get() or \
                     article.css('#ch-ls-head #ch-postdate span:first-child::text').get() or \
-                    article.css('#ncg-info #ncg-postdate::text').get() or \
                     article.css('#cdn-col-box #col-post-date::text').get() or \
                     article.css('#cat-info #cat-pt::text').get() or \
                     article.css('#cdn-cat-box #cb-pt::text').get() or \
                     article.css('#trend_title h3::text').get() or \
                     article.css('div[data-tb-region-item] h4::text').get() or \
                     article.css('div.items[data-tb-region-item] h4::text').get()
+
+            if date is None and article.css('#ncg-info #ncg-postdate::text').get() and not article.css('#ncg-info #ncg-postdate::text').get().isspace():
+                date = date or article.css('#ncg-info #ncg-postdate::text').get()
 
             link = None  # just for initialization
 
@@ -793,11 +797,26 @@ class CovidNewsSpider(scrapy.Spider):
 
     def remove_photograph_credit(self, text):
         text = re.sub(r"\(Image: .+?\)", "", text)
-        text = re.sub(r"\(Photo: .+?\)", "", text)
-        text = re.sub(r"\(Photo by .+?\)", "", text)
+        text = re.sub(r"\(Photo.+?\)", "", text)
+        text = re.sub(r".+?Photo from.+?\n", "", text)
+        text = re.sub(r".+?Screenshot from.+?\n", "", text)
+        text = re.sub(r".+?FIle photo.+?\n", "", text)
         text = re.sub(r"\(AP Photo.+?\)", "", text)
         text = re.sub(r"\(File photo: .+?\)", "", text)
-        text = re.sub(r"File photo of .+?", "", text)
+        text = re.sub(r"File photo of .+?\n", "", text)
+        text = re.sub(r"FILE-.+?\n", "", text)
+        text = re.sub(r".*?file photo.*?\n", "", text)
+        text = re.sub(r".*?File photo.*?\n", "", text)
+        text = re.sub(r".*?FILE PHOTO.*?\n", "", text)
+        text = re.sub(r".*?PHOTO:.*?\n", "", text)
+        text = re.sub(r".*?PVL PHOTO.*?\n", "", text)
+        text = re.sub(r".*?UAAP PHOTO.*?\n", "", text)
+        text = re.sub(r".*?INQUIRER PHOTO.*?\n", "", text)
+        text = re.sub(r".*?\/INQUIRER\.net.*?\n", "", text)
+        text = re.sub(r".*?PHOTO FROM.*?\n", "", text)
+        text = re.sub(r".*?REUTERS\/.*?\n", "", text)
+        text = re.sub(r".*?CONTRIBUTED PHOTO.*?\n", "", text)
+        text = re.sub(r"FILE PHOTO-.+?", "", text)
         text = re.sub(r"FILE PHOTO: .+?File Photo", "", text)
         return text
 
@@ -842,6 +861,7 @@ class CovidNewsSpider(scrapy.Spider):
             "cna women is a section on cna",
             "Write to us at",
             "Subscribe to",
+            "We use cookies",
             "copyright© mediacorp 2023"
         ]
 
@@ -967,7 +987,7 @@ class CovidNewsSpider(scrapy.Spider):
                 if title is None:
                     title = response.css('h1.entry-title::text, h1[class="elementor-heading-title elementor-size-default"]::text, div[id="landing-headline"] h1::text, div[class="single-post-banner-inner"] h1::text').get()
 
-                body = response.css('p ::text').getall()
+                body = response.css('p:not(.footertext):not(.headertext):not(.wp-caption-text) ::text').getall()
 
                 if date is None:
                     print("inquirer.net date is None !!!")
@@ -1075,8 +1095,13 @@ class CovidNewsSpider(scrapy.Spider):
         if TEST_SPECIFIC:
             date_is_within_covid_period = published_year >= 2019
         else:
-            # Jan 2020 till Jan 2022
-            date_is_within_covid_period = ((published_year >= 2020) and (published_year <= 2021))
+            if search_country == 'singapore':
+                # Jan 2020 till Jan 2022
+                date_is_within_covid_period = ((published_year >= 2020) and (published_year <= 2021))
+
+            elif search_country == 'philippines':
+                # https://en.wikipedia.org/wiki/COVID-19_community_quarantines_in_the_Philippines
+                date_is_within_covid_period = ((published_year >= 2020) and (published_year <= 2022))
 
         print(f"date = {date}, and published_year = {published_year}, and date_is_within_covid_period = {date_is_within_covid_period}")
 
