@@ -73,6 +73,7 @@ irrelevant_subdomain_names = ["channelnewsasia.com/watch/", "cnaluxury.channelne
                               "channelnewsasia.com/women/",
                               "channelnewsasia.com/about-us",
                               "entertainment.inquirer.net",
+                              "sports.inquirer.net",
                               "mb.com.ph/our-company"]
 
 # articles that are published with only a title, and without any body content and publish date
@@ -857,11 +858,17 @@ class CovidNewsSpider(scrapy.Spider):
             "© 2022 The Financial Times",
             "© 2023 The Financial Times",
             "(Source: AP)",
+            "(Reporting by",
+            "Read more stories",
+            "For more news",
+            ". Learn more about",
+            "RELATED STORY",
             "catch the olympics games",
             "cna women is a section on cna",
             "Write to us at",
             "Subscribe to",
             "We use cookies",
+            "Follow INQUIRER.net",
             "copyright© mediacorp 2023"
         ]
 
@@ -987,7 +994,8 @@ class CovidNewsSpider(scrapy.Spider):
                 if title is None:
                     title = response.css('h1.entry-title::text, h1[class="elementor-heading-title elementor-size-default"]::text, div[id="landing-headline"] h1::text, div[class="single-post-banner-inner"] h1::text').get()
 
-                body = response.css('p:not(.footertext):not(.headertext):not(.wp-caption-text) ::text').getall()
+                #body = response.css('p:not(.footertext):not(.headertext):not(.wp-caption-text) ::text').getall()
+                body = response.xpath('//p[not(.//strong) and not(.//b) and not(contains(@class, "wp-caption-text")) and not(contains(@class, "footertext")) and not(contains(@class, "headertext")) and not(ancestor::div[@class="qni-cookmsg"])]//text()').getall()
 
                 if date is None:
                     print("inquirer.net date is None !!!")
@@ -1026,13 +1034,51 @@ class CovidNewsSpider(scrapy.Spider):
                 body = None
 
 
-            if body:
-                body = [s.strip() for s in body]
-                body = '\n'.join(body)
-                body = body.strip()
+            if body == []:
+                print(f"empty body list for {link}, search for any url link redirection text")
+                url_redirection_html_elements = response.css('a')
+                new_article_url = None
 
-                body = self.remove_photograph_credit(body)
-                body = self.remove_footnote(body)
+                for url_redirection_html_element in url_redirection_html_elements:
+                    url_redirection_text = url_redirection_html_element.css('::text').get()
+                    url_redirection_link = url_redirection_html_element.css('::attr(href)').get()
+
+                    if url_redirection_text and url_redirection_text.lower() == 'click here for article':
+                        new_article_url = url_redirection_link
+                        print(f"new_article_url = {new_article_url}")
+                        break
+
+                link = new_article_url
+
+                if not link or "javascript" in link or "mailto" in link or "whatsapp://" in link or \
+                    "play.google.com" in link or "apps.apple.com" in link or \
+                    any(article_url in link for article_url in incomplete_articles) or \
+                    any(file_extension in link for file_extension in excluded_file_extensions) or \
+                    any(subdomain_name in link for subdomain_name in irrelevant_subdomain_names) or \
+                    any(subdomain_name in link for subdomain_name in inaccessible_subdomain_names) or \
+                    domain_name not in allowed_domain_names:
+                    # skipping urls
+                    #print(f"skipped {link} inside get_article_content()")
+                    yield None
+
+                else:
+                    yield SplashRequest(
+                         url=new_article_url,
+                         callback=self.write_to_local_data,
+                         meta={'link': new_article_url, 'title': title, 'body': body, 'date': date},  # Pass additional data here
+                         #endpoint='render.html',  # for non-pure html with javascript
+                         endpoint='execute',  # for closing advertising overlay page to get to desired page
+                         args={'lua_source': self.js_script,
+                               'lua_source_isolated': False,  # for showing self.js_script print() output
+                               'adblock': True,
+                               'wait': 10,
+                               'resource_timeout': 10,
+                               'timeout': 60  # limit the total time the Lua script can run (optional)
+                              },
+                         splash_headers={'X-Splash-Render-HTML': 1},  # for non-pure html with javascript
+                         headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,      like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
+                    )
+
 
             if date:
                 date = ''.join(c for c in date if c.isprintable())  # to remove erroneous non-ASCII printable character
@@ -1046,7 +1092,7 @@ class CovidNewsSpider(scrapy.Spider):
                     yield self.parse(response)
 
             else:
-                self.write_to_local_data(link, title, body, date, response)
+                self.write_to_local_data(response, link, title, body, date)
 
                 '''
                 # for the purpose of debugging js_script
@@ -1077,7 +1123,14 @@ class CovidNewsSpider(scrapy.Spider):
                 }
 
 
-    def write_to_local_data(self, link, title, body, date, response):
+    def write_to_local_data(self, response, link=None, title=None, body=None, date=None):
+        # Access the additional data here
+        if not link and not title and not date:
+            link = response.meta['link']
+            title = response.meta['title']
+            body = response.meta['body']
+            date = response.meta['date']
+
         if "month ago" in date.lower() or "months ago" in date.lower() or \
             "week ago" in date.lower() or "weeks ago" in date.lower() or \
             "day ago" in date.lower() or "days ago" in date.lower() or \
@@ -1104,6 +1157,19 @@ class CovidNewsSpider(scrapy.Spider):
                 date_is_within_covid_period = ((published_year >= 2020) and (published_year <= 2022))
 
         print(f"date = {date}, and published_year = {published_year}, and date_is_within_covid_period = {date_is_within_covid_period}")
+
+        # we had already retried to re-fetch the new_article_url inside get_article_content(), so if body is still an empty list,
+        # this means there is either no new_article_url or the newly redirected page also had no body paragraph text
+        if body == []:
+            return None
+
+        if body:
+            body = [s.strip() for s in body]
+            body = '\n'.join(body)
+            body = body.strip()
+
+            body = self.remove_photograph_credit(body)
+            body = self.remove_footnote(body)
 
         if (((title != None and any(keyword in title.lower() for keyword in search_keywords)) or \
             (body != None and any(keyword in body.lower() for keyword in search_keywords))) and \
