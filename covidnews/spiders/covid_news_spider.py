@@ -72,7 +72,7 @@ irrelevant_subdomain_names = ["channelnewsasia.com/watch/", "cnaluxury.channelne
                               "channelnewsasia.com/author", "straitstimes.com/author",
                               "channelnewsasia.com/women/",
                               "channelnewsasia.com/about-us",
-                              "entertainment.inquirer.net",
+                              "entertainment.inquirer.net", "business.inquirer.net",
                               "sports.inquirer.net",
                               "mb.com.ph/our-company"]
 
@@ -552,25 +552,26 @@ class CovidNewsSpider(scrapy.Spider):
                     #print(f"skipped {link} inside parse() B")
                     continue
 
-                #print("response.url = ", response.url)
-                #print("next_page_url = ", next_page_url)
+                else:
+                    #print("response.url = ", response.url)
+                    #print("next_page_url = ", next_page_url)
 
-                yield SplashRequest(
-                    #response.urljoin(next_page),
-                    url=next_page_url,
-                    callback=self.parse,
-                    #endpoint='render.html',  # for non-pure html with javascript
-                    endpoint='execute',  # for closing advertising overlay page to get to desired page
-                    args={'lua_source': self.js_script,
-                          'lua_source_isolated': False,  # for showing self.js_script print() output
-                          'adblock': True,
-                          'wait': 10,
-                          'resource_timeout': 10,
-                          'timeout': 60  # limit the total time the Lua script can run (optional)
-                         },
-                    splash_headers={'X-Splash-Render-HTML': 1},  # for non-pure html with javascript
-                    headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
-                )
+                    yield SplashRequest(
+                        #response.urljoin(next_page),
+                        url=next_page_url,
+                        callback=self.parse,
+                        #endpoint='render.html',  # for non-pure html with javascript
+                        endpoint='execute',  # for closing advertising overlay page to get to desired page
+                        args={'lua_source': self.js_script,
+                              'lua_source_isolated': False,  # for showing self.js_script print() output
+                              'adblock': True,
+                              'wait': 10,
+                              'resource_timeout': 10,
+                              'timeout': 60  # limit the total time the Lua script can run (optional)
+                             },
+                        splash_headers={'X-Splash-Render-HTML': 1},  # for non-pure html with javascript
+                        headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
+                    )
 
         print(f"Found {len(articles)} articles")
 
@@ -612,7 +613,7 @@ class CovidNewsSpider(scrapy.Spider):
                                             response = response,
                                         )
 
-            return response.css('.flx-leftbox, .flx-m-box, #tr_boxs3, #fv-ed-box, #op-columns-box, .image-with-text, #buzz-box, #inqf-box, div[data-tb-region-item], div.items[data-tb-region-item], #cmr-bg, #cmr-box, #ncg-box, #cdn-col-box, #cdn-g-box, .list-head, #trend_title, #usa-add-gallery > a, #cdn-cat-wrap > a, #op-sec h3, #ch-ls-head')
+            return response.css('.flx-leftbox, .flx-m-box, #tr_boxs3, #fv-ed-box, #op-columns-box, .image-with-text, #buzz-box, #inqf-box, div[data-tb-region-item]:not(#fview-cap), div.items[data-tb-region-item], #cmr-bg, #cmr-box, #ncg-box, #cdn-col-box, #cdn-g-box, .list-head, #trend_title, #usa-add-gallery > a, #cdn-cat-wrap > a, #op-sec h3, #ch-ls-head')
 
         elif 'mb.com.ph' in response.url:
             print("parse_articles() for mb.com.ph")
@@ -1034,6 +1035,12 @@ class CovidNewsSpider(scrapy.Spider):
                 body = None
 
 
+            if date:
+                date = ''.join(c for c in date if c.isprintable())  # to remove erroneous non-ASCII printable character
+                date = date.strip()  # to remove unnecessary whitespace or newlines characters
+
+            #print(f"inside get_article_content(), article_url = {link} , title = {title}, date = {date}, body = {body}")
+
             if body == []:
                 print(f"empty body list for {link}, search for any url link redirection text")
                 url_redirection_html_elements = response.css('a')
@@ -1079,12 +1086,6 @@ class CovidNewsSpider(scrapy.Spider):
                          headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,      like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
                     )
 
-
-            if date:
-                date = ''.join(c for c in date if c.isprintable())  # to remove erroneous non-ASCII printable character
-                date = date.strip()  # to remove unnecessary whitespace or newlines characters
-
-            print(f"inside get_article_content(), article_url = {link} , title = {title}, date = {date}, body = {body}")
             # This is an early sign that the current page after url redirection
             # is pointing to a new page containing multiple articles
             if url_had_redirected and self.parse_articles(response) is not None:
@@ -1170,6 +1171,8 @@ class CovidNewsSpider(scrapy.Spider):
 
             body = self.remove_photograph_credit(body)
             body = self.remove_footnote(body)
+
+        print(f"inside write_to_local_data(), article_url = {link} , title = {title}, date = {date}, body = {body}")
 
         if (((title != None and any(keyword in title.lower() for keyword in search_keywords)) or \
             (body != None and any(keyword in body.lower() for keyword in search_keywords))) and \
