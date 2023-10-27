@@ -72,8 +72,8 @@ irrelevant_subdomain_names = ["channelnewsasia.com/watch/", "cnaluxury.channelne
                               "channelnewsasia.com/author", "straitstimes.com/author",
                               "channelnewsasia.com/women/",
                               "channelnewsasia.com/about-us",
-                              "entertainment.inquirer.net", "business.inquirer.net",
-                              "sports.inquirer.net",
+                              "entertainment.inquirer.net", "business.inquirer.net", "opinion.inquirer.net",
+                              "sports.inquirer.net", "technology.inquirer.net",
                               "mb.com.ph/our-company"]
 
 # articles that are published with only a title, and without any body content and publish date
@@ -860,6 +860,7 @@ class CovidNewsSpider(scrapy.Spider):
             "© 2023 The Financial Times",
             "(Source: AP)",
             "(Reporting by",
+            "—With a report from",
             "Read more stories",
             ". Learn more about",
             "RELATED STORIES",
@@ -869,8 +870,10 @@ class CovidNewsSpider(scrapy.Spider):
             "Write to us at",
             ". Subscribe to",
             "We use cookies",
+            "For more news about the novel coronavirus click here",
             "Follow INQUIRER.net",
             "The Inquirer Foundation",
+            "ADVT",
             "COPYRIGHT ©",
             "copyright© mediacorp 2023"
         ]
@@ -950,7 +953,7 @@ class CovidNewsSpider(scrapy.Spider):
 
                                 # Replace line in the original text with the modified line
                                 #print(f"inside remove_footnote(), line_with_the_footnote_phrase = {line_with_the_footnote_phrase}")
-                                line_without_the_footnote_phrase = line_with_the_footnote_phrase[:phrase_start-start-1]
+                                line_without_the_footnote_phrase = line_with_the_footnote_phrase[:phrase_start-start]
                                 #print(f"inside remove_footnote(), line_without_the_footnote_phrase = {line_without_the_footnote_phrase}")
 
                                 if i >= window_size:  # not the first circular buffer slot
@@ -960,11 +963,10 @@ class CovidNewsSpider(scrapy.Spider):
                                 break
 
                             # Remove all subsequent text after footnote phrase
-                            pl = phrase_is_located_at_this_line_number
-                            if pl-orig_buf_len+1 >= 0:
-                                #print(f"inside remove_footnote(), before cleaning the subsequent text, lines[{pl-orig_buf_len+1}:] = {lines[pl-orig_buf_len+1:]}")
-                                lines[pl-orig_buf_len+1:] = ''
-                                #print(f"inside remove_footnote(), after cleaning the subsequent text, lines[{pl-orig_buf_len+1}:] = {lines[pl-orig_buf_len+1:]}")
+                            if i-orig_buf_len+1 >= 0:
+                                #print(f"inside remove_footnote(), before cleaning the subsequent text, lines[{i-orig_buf_len+1}:] = {lines[i-orig_buf_len+1:]}")
+                                lines[i-orig_buf_len+1:] = ''
+                                #print(f"inside remove_footnote(), after cleaning the subsequent text, lines[{i-orig_buf_len+1}:] = {lines[i-orig_buf_len+1:]}")
                             else:
                                 #print(f"inside remove_footnote(), before cleaning the subsequent text, lines[{i-len(buffer)}:] = {lines[i-len(buffer):]}")
                                 lines[i-len(buffer):] = ''
@@ -1051,7 +1053,7 @@ class CovidNewsSpider(scrapy.Spider):
                     title = response.css('h1.entry-title::text, h1[class="elementor-heading-title elementor-size-default"]::text, div[id="landing-headline"] h1::text, div[class="single-post-banner-inner"] h1::text').get()
 
                 #body = response.css('p:not(.footertext):not(.headertext):not(.wp-caption-text) ::text').getall()
-                body = response.xpath('//p[not(.//strong) and not(.//b) and not(contains(@class, "wp-caption-text")) and not(contains(@class, "footertext")) and not(contains(@class, "headertext")) and not(ancestor::div[@class="qni-cookmsg"])]//text()').getall()
+                body = response.xpath('//p[not(.//strong) and not(.//b) and not(contains(@class, "wp-caption-text")) and not(contains(@class, "footertext")) and not(contains(@class, "headertext")) and not(ancestor::div[@class="qni-cookmsg"]) and not(ancestor::blockquote[@class="twitter-tweet"]) and not(./iframe)]//text()').getall()
 
                 if date is None:
                     print("inquirer.net date is None !!!")
@@ -1065,7 +1067,8 @@ class CovidNewsSpider(scrapy.Spider):
                     date = date or \
                             response.css('div.art-byline span:last-child::text').get() or \
                             response.css('ul.blog-meta-list > li:nth-child(3) a::text').get() or \
-                            response.css('li[itemprop="datePublished"] span::text').get()
+                            response.css('li[itemprop="datePublished"] span::text').get() or \
+                            response.css('#spl-byline span:last-child::text').get()
 
                     if response.css('div[id="art_plat"]::text').getall():
                         date = date or \
