@@ -73,7 +73,8 @@ irrelevant_subdomain_names = ["channelnewsasia.com/watch/", "cnaluxury.channelne
                               "channelnewsasia.com/women/",
                               "channelnewsasia.com/about-us",
                               "entertainment.inquirer.net", "business.inquirer.net", "opinion.inquirer.net",
-                              "sports.inquirer.net", "technology.inquirer.net",
+                              "sports.inquirer.net", "technology.inquirer.net", "usa.inquirer.net",
+                              "pop.inquirer.net", "inquirer.net/inqpop",
                               "mb.com.ph/our-company"]
 
 # articles that are published with only a title, and without any body content and publish date
@@ -460,6 +461,7 @@ class CovidNewsSpider(scrapy.Spider):
         url = re.sub(r"https?://usiness\.inquirer\.net", "https://business.inquirer.net", url)
         url = re.sub(r"https?://ebudailynews\.inquirer\.net", "https://cebudailynews.inquirer.net", url)
         url = re.sub(r"https?://www\.bandera\.inquirer\.net", "https://bandera.inquirer.net", url)
+        url = re.sub(r"https?://www\.newsinfo\.inquirer\.net", "https://newsinfo.inquirer.net", url)
         url = re.sub(r"https?://www\.cebudailynews\.inquirer\.net", "https://cebudailynews.inquirer.net", url)
 
         if not url.startswith("http"):
@@ -860,8 +862,11 @@ class CovidNewsSpider(scrapy.Spider):
             "© 2023 The Financial Times",
             "(Source: AP)",
             "(Reporting by",
+            "Edited by",
             "—With a report from",
+            "—Jerome",
             "Read more stories",
+            "Read more Global Nation stories",
             ". Learn more about",
             "RELATED STORIES",
             "RELATED STORY",
@@ -1068,11 +1073,13 @@ class CovidNewsSpider(scrapy.Spider):
                             response.css('div.art-byline span:last-child::text').get() or \
                             response.css('ul.blog-meta-list > li:nth-child(3) a::text').get() or \
                             response.css('li[itemprop="datePublished"] span::text').get() or \
+                            response.css('div[id="art_plat"]::attr(data-timezone)').get() or \
                             response.css('#spl-byline span:last-child::text').get()
 
-                    if response.css('div[id="art_plat"]::text').getall():
+                    if date is None and response.css('div[id="art_plat"]::text').getall():
                         date = date or \
-                                response.css('div[id="art_plat"]::text').getall()[-1]
+                                [response.css('div[id="art_plat"]::text').re_first(r'Updated as of:\s*(.*)')][-1]
+                                #response.css('div[id="art_plat"]::text').getall()[-1]
 
                     if response.css('div.bpdate::text').getall():
                         date = date or \
