@@ -864,7 +864,10 @@ class CovidNewsSpider(scrapy.Spider):
             "(Reporting by",
             "Edited by",
             "—With a report from",
+            "—WITH REPORTS FROM",
             "—Jerome",
+            "[ac]",
+            "Click here for more"
             "Read more stories",
             "Read more Global Nation stories",
             ". Learn more about",
@@ -1060,6 +1063,14 @@ class CovidNewsSpider(scrapy.Spider):
                 #body = response.css('p:not(.footertext):not(.headertext):not(.wp-caption-text) ::text').getall()
                 body = response.xpath('//p[not(.//strong) and not(.//b) and not(contains(@class, "wp-caption-text")) and not(contains(@class, "footertext")) and not(contains(@class, "headertext")) and not(ancestor::div[@class="qni-cookmsg"]) and not(ancestor::blockquote[@class="twitter-tweet"]) and not(./iframe)]//text()').getall()
 
+                li_texts = response.xpath('//li[not(*)]/text()').getall()
+
+                for i in range(len(li_texts)):
+                    if i < len(li_texts) - 1:
+                        li_texts[i] += ','
+
+                body = body + li_texts
+
                 if date is None:
                     print("inquirer.net date is None !!!")
 
@@ -1078,8 +1089,7 @@ class CovidNewsSpider(scrapy.Spider):
 
                     if date is None and response.css('div[id="art_plat"]::text').getall():
                         date = date or \
-                                [response.css('div[id="art_plat"]::text').re_first(r'Updated as of:\s*(.*)')][-1]
-                                #response.css('div[id="art_plat"]::text').getall()[-1]
+                                response.css('div[id="art_plat"]::text').getall()[-1].replace("Updated as of:", "")
 
                     if response.css('div.bpdate::text').getall():
                         date = date or \
