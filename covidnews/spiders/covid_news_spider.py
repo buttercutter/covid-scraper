@@ -54,7 +54,7 @@ inaccessible_subdomain_names = ["olympianbuilder.straitstimes.com", "ststaff.str
                                 "inqshop.inquirer.net", "misc.inquirer.net", "nment.inquirer.net",
                                 "inqpop.inquirer.net", "newyorktimes.inquirer.net", "showbizandstyle.inquirer.net",
                                 "vouchers.inquirer.net", "blogs.inquirer.net", "apec.inquirer.net",
-                                "newsinafo.inquirer.net"
+                                "newsinafo.inquirer.net", "yass.inquirer.net", "yasss.inquirer.net"
                                 ]
 
 # these subdomains contains irrelevant contents for region-based, text-based media article scraping
@@ -867,12 +867,14 @@ class CovidNewsSpider(scrapy.Spider):
             "—WITH REPORTS FROM",
             "—Jerome",
             "[ac]",
-            "Click here for more"
+            "Click here for more",
+            "Click here to read more",
             "Read more stories",
             "Read more Global Nation stories",
             ". Learn more about",
             "RELATED STORIES",
             "RELATED STORY",
+            "RELATED VIDEO",
             "catch the olympics games",
             "cna women is a section on cna",
             "Write to us at",
@@ -1061,15 +1063,18 @@ class CovidNewsSpider(scrapy.Spider):
                     title = response.css('h1.entry-title::text, h1[class="elementor-heading-title elementor-size-default"]::text, div[id="landing-headline"] h1::text, div[class="single-post-banner-inner"] h1::text').get()
 
                 #body = response.css('p:not(.footertext):not(.headertext):not(.wp-caption-text) ::text').getall()
-                body = response.xpath('//p[not(.//strong) and not(.//b) and not(contains(@class, "wp-caption-text")) and not(contains(@class, "footertext")) and not(contains(@class, "headertext")) and not(ancestor::div[@class="qni-cookmsg"]) and not(ancestor::blockquote[@class="twitter-tweet"]) and not(./iframe)]//text()').getall()
+                body = response.xpath('//p[not(.//strong) and not(.//b) and not(contains(@class, "wp-caption-text")) and not(contains(@class, "footertext")) and not(contains(@class, "headertext")) and not(ancestor::div[@class="qni-cookmsg"]) and not(ancestor::blockquote[@class="twitter-tweet"]) and not(./iframe)]//text() | //li[not(*)]/text() | //p//text()[contains(.,"ADVT")] | //p//text()[contains(.,"READ MORE")]').getall()
 
                 li_texts = response.xpath('//li[not(*)]/text()').getall()
+                #print(f"li_texts = {li_texts}")
 
-                for i in range(len(li_texts)):
-                    if i < len(li_texts) - 1:
-                        li_texts[i] += ','
-
-                body = body + li_texts
+                # Replace <li> texts with comma separated
+                for i, text in enumerate(body):
+                    for j, t in enumerate(li_texts):
+                        #print(f"text = {text}, t = {t}")
+                        if text in t and j < len(li_texts) - 1:
+                            # replace the matching part of the text with t (which has a comma added)
+                            body[i] = text.replace(t, t + ',')
 
                 if date is None:
                     print("inquirer.net date is None !!!")
