@@ -342,7 +342,7 @@ class CovidNewsSpider(scrapy.Spider):
                 if TEST_SPECIFIC:
                     yield SplashRequest(
                             url,
-                            callback=self.parse,
+                            callback=self.get_article_content,
                             meta={'title': None, 'date': None, 'article_url': url},  # Pass additional data here, assigned None here for testing purpose
                             endpoint='execute',  # for closing advertising overlay page to get to desired page
                             args={'lua_source': self.js_script,
@@ -869,6 +869,7 @@ class CovidNewsSpider(scrapy.Spider):
             "[ac]",
             "Click here for more",
             "Click here to read more",
+            "READ MORE:",
             "Read more stories",
             "Read more Global Nation stories",
             ". Learn more about",
@@ -945,20 +946,25 @@ class CovidNewsSpider(scrapy.Spider):
                         #print(f"inside remove_footnote(), start = {start}, end = {end}")
 
                         if start <= phrase_start < end or start < phrase_end <= end:
-                            phrase_is_located_at_this_line_number = line_start_positions.index(start)
+                            phrase_is_located_at_this_buffer_index = line_start_positions.index(start)
 
                             if buffer:  # Check if buffer is not empty before popping
                                 orig_buf_len = len(buffer)
                                 #print(f"inside remove_footnote(), before pop(), buffer = {buffer}")
-                                #print(f"inside remove_footnote(), before pop(), orig_buf_len = {orig_buf_len}, phrase_is_located_at_this_line_number = {phrase_is_located_at_this_line_number}")
-                                line_with_the_footnote_phrase = buffer.pop(phrase_is_located_at_this_line_number)
+                                #print(f"inside remove_footnote(), before pop(), orig_buf_len = {orig_buf_len}, phrase_is_located_at_this_buffer_index = {phrase_is_located_at_this_buffer_index}")
+                                # pop() for 'line_with_the_footnote_phrase' only removes 1 single element, but not the subsequent elements
+                                line_with_the_footnote_phrase = buffer.pop(phrase_is_located_at_this_buffer_index)
 
-                                if phrase_is_located_at_this_line_number < len(buffer):
-                                    for ws_i in range(phrase_is_located_at_this_line_number, len(buffer)):
-                                        #print(f"inside remove_footnote(), ws_i = {ws_i}")
-                                        if buffer:
-                                            # pop() only removes 1 single element, but not the subsequent elements
-                                            buffer.pop(ws_i)
+                                # removes subsequent element in 'buffer'
+                                for ws_i in range(phrase_is_located_at_this_buffer_index, len(buffer)):
+                                    #print(f"inside remove_footnote(), before pop(), len(buffer) = {len(buffer)}, phrase_is_located_at_this_buffer_index = {phrase_is_located_at_this_buffer_index}, buffer = {buffer}")
+                                    if phrase_is_located_at_this_buffer_index > 0:
+                                        removed_string_item = buffer.pop(ws_i)
+                                        #print(f"inside remove_footnote(), ws_i = {ws_i}, removed_string_item = {removed_string_item}")
+                                    else:
+                                        #removed_string_item = buffer.pop(len(buffer)-ws_i-1)
+                                        buffer = []
+
                                 #print(f"inside remove_footnote(), after pop(), buffer = {buffer}")
 
                                 # Replace line in the original text with the modified line
@@ -966,28 +972,32 @@ class CovidNewsSpider(scrapy.Spider):
                                 line_without_the_footnote_phrase = line_with_the_footnote_phrase[:phrase_start-start]
                                 #print(f"inside remove_footnote(), line_without_the_footnote_phrase = {line_without_the_footnote_phrase}")
 
-                                if i >= window_size:  # not the first circular buffer slot
-                                    buffer.append(line_without_the_footnote_phrase)
-                                    #print(f"inside remove_footnote(), after cleaning the footnote phrase, buffer = {buffer}")
                             else:
                                 break
 
-                            # Remove all subsequent text after footnote phrase
-                            if i-orig_buf_len+1 >= 0:
+                            footnote_is_spread_across_multiple_buffer_items = \
+                                (len(phrase) > end - start) or \
+                                (phrase_end > end)
+
+                            #print(f"footnote_is_spread_across_multiple_buffer_items = {footnote_is_spread_across_multiple_buffer_items}, len({phrase}) = {len(phrase)}")
+
+                            # Remove the exact line containing footnote phrase as well as all other subsequent lines
+                            if phrase_is_located_at_this_buffer_index == 0:
                                 #print(f"inside remove_footnote(), before cleaning the subsequent text, lines[{i-orig_buf_len+1}:] = {lines[i-orig_buf_len+1:]}")
                                 lines[i-orig_buf_len+1:] = ''
                                 #print(f"inside remove_footnote(), after cleaning the subsequent text, lines[{i-orig_buf_len+1}:] = {lines[i-orig_buf_len+1:]}")
                             else:
-                                #print(f"inside remove_footnote(), before cleaning the subsequent text, lines[{i-len(buffer)}:] = {lines[i-len(buffer):]}")
-                                lines[i-len(buffer):] = ''
-                                #print(f"inside remove_footnote(), after cleaning the subsequent text, lines[{i-len(buffer)}:] = {lines[i-len(buffer):]}")
+                                if not footnote_is_spread_across_multiple_buffer_items:
+                                    #print(f"inside remove_footnote(), before cleaning the subsequent text, lines[{i}:] = {lines[i:]}")
+                                    lines[i:] = ''
+                                    #print(f"inside remove_footnote(), after cleaning the subsequent text, lines[{i}:] = {lines[i:]}")
+                                else:
+                                    #print(f"inside remove_footnote(), before cleaning the subsequent text, lines[{i-len(buffer)}:] = {lines[i-len(buffer):]}")
+                                    lines[i-len(buffer):] = ''
+                                    #print(f"inside remove_footnote(), after cleaning the subsequent text, lines[{i-len(buffer)}:] = {lines[i-len(buffer):]}")
 
                             # Combines lines that have no footnote phrase
-                            if i >= window_size:  # not the first circular buffer slot
-                                buffer_string_without_footnote = '\n'.join(buffer).lower()
-                                lines.append(buffer_string_without_footnote)
-                            else:
-                                lines.append(line_without_the_footnote_phrase)
+                            lines.append(line_without_the_footnote_phrase)
 
                             # Join the lines back into a single string
                             cleaned_text = "\n".join(lines)
