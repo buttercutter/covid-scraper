@@ -8,6 +8,8 @@ from dateutil.parser import parse
 
 import base64
 from collections import OrderedDict
+from parsel import Selector
+from bs4 import BeautifulSoup
 
 # For http://web.archive.org/
 import internetarchive
@@ -64,8 +66,9 @@ irrelevant_subdomain_names = ["channelnewsasia.com/watch/", "cnaluxury.channelne
                               "cnalifestyle.channelnewsasia.com/brandstudio/",
                               "channelnewsasia.com/experiences/", "channelnewsasia.com/dining/",
                               "straitstimes.com/video", "channelnewsasia.com/listen/",
+                              "straitstimes.com/sport/", "straitstimes.com/business/",
                               "straitstimes.com/world/",
-                              "straitstimes.com/asia/east-asia/",
+                              "straitstimes.com/asia/east-asia/", "ge2015social.straitstimes.com",
                               "channelnewsasia.com/asia/east-asia/", "channelnewsasia.com/asia/south-asia/",
                               "channelnewsasia.com/world/", "channelnewsasia.com/sport/",
                               "channelnewsasia.com/business", "channelnewsasia.com/entertainment",
@@ -74,7 +77,7 @@ irrelevant_subdomain_names = ["channelnewsasia.com/watch/", "cnaluxury.channelne
                               "channelnewsasia.com/about-us",
                               "entertainment.inquirer.net", "business.inquirer.net", "opinion.inquirer.net",
                               "sports.inquirer.net", "technology.inquirer.net", "usa.inquirer.net",
-                              "pop.inquirer.net", "inquirer.net/inqpop",
+                              "pop.inquirer.net", "inquirer.net/inqpop", "lifestyle.inquirer.net",
                               "mb.com.ph/our-company"]
 
 # articles that are published with only a title, and without any body content and publish date
@@ -462,6 +465,7 @@ class CovidNewsSpider(scrapy.Spider):
         url = re.sub(r"https?://ebudailynews\.inquirer\.net", "https://cebudailynews.inquirer.net", url)
         url = re.sub(r"https?://www\.bandera\.inquirer\.net", "https://bandera.inquirer.net", url)
         url = re.sub(r"https?://www\.newsinfo\.inquirer\.net", "https://newsinfo.inquirer.net", url)
+        url = re.sub(r"https?://nwsinfo\.inquirer\.net", "https://newsinfo.inquirer.net", url)
         url = re.sub(r"https?://www\.cebudailynews\.inquirer\.net", "https://cebudailynews.inquirer.net", url)
 
         if not url.startswith("http"):
@@ -863,16 +867,19 @@ class CovidNewsSpider(scrapy.Spider):
             "(Source: AP)",
             "(Reporting by",
             "Edited by",
+            "Brought to you by",
             "—With a report from",
             "—WITH REPORTS FROM",
             "—Jerome",
             "[ac]",
             "Click here for more",
             "Click here to read more",
+            "READ:",
             "READ MORE:",
             "Read more stories",
             "Read more Global Nation stories",
             ". Learn more about",
+            "For more information about",
             "RELATED STORIES",
             "RELATED STORY",
             "RELATED VIDEO",
@@ -1073,8 +1080,41 @@ class CovidNewsSpider(scrapy.Spider):
                     title = response.css('h1.entry-title::text, h1[class="elementor-heading-title elementor-size-default"]::text, div[id="landing-headline"] h1::text, div[class="single-post-banner-inner"] h1::text').get()
 
                 #body = response.css('p:not(.footertext):not(.headertext):not(.wp-caption-text) ::text').getall()
-                body = response.xpath('//p[not(.//strong) and not(.//b) and not(contains(@class, "wp-caption-text")) and not(contains(@class, "footertext")) and not(contains(@class, "headertext")) and not(ancestor::div[@class="qni-cookmsg"]) and not(ancestor::blockquote[@class="twitter-tweet"]) and not(./iframe)]//text() | //li[not(*)]/text() | //p//text()[contains(.,"ADVT")] | //p//text()[contains(.,"READ MORE")]').getall()
+                #body = response.xpath('//p[not(.//strong) and not(.//b) and not(contains(@class, "wp-caption-text")) and not(contains(@class, "footertext")) and not(contains(@class, "headertext")) and not(ancestor::div[@class="qni-cookmsg"]) and not(ancestor::blockquote[@class="twitter-tweet"]) and not(./iframe)]//text() | //li[not(*)]/text() | //p//text()[contains(.,"ADVT")] | //p//text()[contains(.,"READ MORE")]').getall()
 
+
+                """
+                The following logic using BeautifulSoup is trying to work around the limitation of
+                response.xpath('//p[not(.//strong) and not(.//b)]//text()').getall() , where this xpath() will
+                exclude html such as:   <p>relevant_text<strong>irrelevant_text</strong>relevant_text</p>
+                """
+
+                # Get HTML content
+                html_content = response.xpath('//body').get()
+
+                # Parse HTML content with BeautifulSoup
+                soup = BeautifulSoup(html_content, 'lxml')
+
+                # Find all <strong> and <b> tags
+                tags = soup.find_all(['strong', 'b'])
+
+                # Remove each tag
+                for tag in tags:
+                    tag.decompose()
+
+                # Get the modified HTML
+                html_content = str(soup)
+                #print(f"html_content after removing <strong> and <b> tags = {html_content}")
+
+                # Convert the resulting text into a Selector object
+                response_without_strong_and_b_tags = Selector(text=html_content)
+
+                # Extract the rest of the data
+                body = response_without_strong_and_b_tags.xpath('//p[not(contains(@class, "wp-caption-text")) and not(contains(@class, "footertext")) and not(contains(@class, "headertext")) and not(ancestor::div[@class="qni-cookmsg"]) and not(ancestor::blockquote[@class="twitter-tweet"]) and not(./iframe)]//text() | //li[not(*)]/text() | //p//text()[contains(.,"ADVT")] | //p//text()[contains(.,"READ MORE")]').getall()
+                #print(f"body after removing <strong> and <b> tags = {body}")
+
+
+                # Get the text of the <li> tags without any child tags
                 li_texts = response.xpath('//li[not(*)]/text()').getall()
                 #print(f"li_texts = {li_texts}")
 
