@@ -44,6 +44,9 @@ if search_country == 'singapore':
 elif search_country == 'philippines':
     allowed_domain_names = ["mb.com.ph", "inquirer.net"]
 
+elif search_country == 'malaysia':
+    allowed_domain_names = ["nst.com.my", "thestar.com.my"]
+
 
 # not accessible due to DNS lookup error or the webpage had since migrated to other subdomains
 inaccessible_subdomain_names = ["olympianbuilder.straitstimes.com", "ststaff.straitstimes.com", "media.straitstimes.com",
@@ -68,6 +71,7 @@ irrelevant_subdomain_names = ["channelnewsasia.com/watch/", "cnaluxury.channelne
                               "straitstimes.com/video", "channelnewsasia.com/listen/",
                               "straitstimes.com/sport/", "straitstimes.com/business/",
                               "straitstimes.com/world/",
+                              "straitstimes.com/life/", "straitstimes.com/lifestyle/entertainment/",
                               "straitstimes.com/asia/east-asia/", "ge2015social.straitstimes.com",
                               "channelnewsasia.com/asia/east-asia/", "channelnewsasia.com/asia/south-asia/",
                               "channelnewsasia.com/world/", "channelnewsasia.com/sport/",
@@ -136,6 +140,12 @@ class CovidNewsSpider(scrapy.Spider):
                 #'https://www.manilatimes.net/',  # almost all articles requires digital subscription fees
                 #'https://mb.com.ph/search-results?s=covid',  # splash is not working yet
                 'https://www.inquirer.net/'
+            ]
+
+        elif search_country == 'malaysia':
+            start_urls = [
+                'https://www.nst.com.my/',
+                'https://www.thestar.com.my/'
             ]
 
 
@@ -426,6 +436,12 @@ class CovidNewsSpider(scrapy.Spider):
                 #more_links = response.css('.mb-font-more-button::text').get()
                 return None
 
+        elif 'nst.com.my' in response.url:
+            more_links = response.css('a::attr(href)').getall()
+
+        elif 'thestar.com.my' in response.url:
+            more_links = response.css('a::attr(href)').getall()
+
         elif 'archive.org' in response.url:
             more_links = response.css('a.format-summary:contains("FULL TEXT")::attr(href)').getall()
 
@@ -647,6 +663,66 @@ class CovidNewsSpider(scrapy.Spider):
                                         )
 
             return response.css('div.row.mb-16, div.row.mb-5, .custom-article-text, .mb-font-article-title, .mb-font-live-update-article-title, div.videoCube.trc_spotlight_item.origin-undefined')
+
+        elif 'nst.com.my' in response.url:
+            print("parse_articles() for nst.com.my")
+            return response.css(
+                    'div.row.mb-4 div.col-md-4.col-lg-3.order-2.order-sm-1.mb-4.mb-sm-0 div.mb-4, \
+                    div.row.mb-4 div.col-md-4.col-lg-3.order-2.order-sm-1.mb-4.mb-sm-0 div div.block.block-article-image-row-listing, \
+                    \
+                    div.block.block-breaking-news div.d-flex.mb-3, \
+                    div.block.block-breaking-news div.row div.col-12.col-sm.mb-4.mb-sm-0, \
+                    div.block.block-breaking-news div.row div.col.col-sm.align-items-center.article-listing div.d-flex.flex-column.h-100.justify-content-between a.d-flex.article.listing.mb-2, \
+                    \
+                    div.most-popular.block div#__BVID__12.tabs div#__BVID__12__BV_tab_container_.tab-content.pt-2 div#__BVID__13.tab-pane.active div.timeline.pt-3 ul li.d-flex.pb-3, \
+                    div.most-popular.block div#__BVID__12.tabs div#__BVID__12__BV_tab_container_.tab-content.pt-2 div#__BVID__15.tab-pane.active div.ranked-listing div.ranked-item.d-flex.px-3.pb-2.mb-2.align-items-center.timeline, \
+                    div.most-popular.block div#__BVID__8.tabs div#__BVID__8__BV_tab_container_.tab-content.pt-2 div#__BVID__11.tab-pane.active div.ranked-listing div.ranked-item.d-flex.px-3.pb-2.mb-2.align-items-center.timeline, \
+                    div.most-popular.block div#__BVID__8.tabs div#__BVID__8__BV_tab_container_.tab-content.pt-2 div#__BVID__9.tab-pane.active div.timeline.pt-3 ul li.d-flex.pb-3, \
+                    div.most-popular.block div#__BVID__8.tabs div#__BVID__8__BV_tab_container_.tab-content.pt-2 div#__BVID__9.tab-pane.active div.timeline.pt-3 ul li.d-flex.pb-4, \
+                    \
+                    div.block.block-opinions div.row div.col-12.col-sm.mb-4.mb-sm-0, \
+                    div.owl-stage div.owl-item.cloned, \
+                    div.owl-stage div.owl-item.active, \
+                    div.owl-stage div.owl-item.cloned.active, \
+                    div.owl-stage div.owl-item, \
+                    \
+                    div.block.block-left-featured-right-listing div.row.no-gutter div.col-12.col-lg a, \
+                    div.block.block-left-featured-right-listing div.row.no-gutter div.col-12.col-lg div.inner-wrapper.h-100.p-3.d-flex.flex-column.justify-content-between a.d-flex.article.listing.mb-2, \
+                    div.col-12.col-lg.article-listing div.inner-wrapper.h-100.p-3.d-flex.flex-column.justify-content-between a.d-flex.article.listing.mb-2, \
+                    div.col-12.col-lg div.inner-wrapper.h-100.p-3.d-flex.flex-column.justify-content-between a.d-flex.article.listing.mb-2, \
+                    \
+                    div.article-listing div.article-teaser, \
+                    div#trending-block.block.my-4 div.block-content.d-block.position-relative a.d-flex.article.listing.mb-2.pb-2.border-bottom, \
+                    \
+                    div.block.block-single-listing, \
+                    div.collection-listing-latest div.latest-featured div.row, \
+                    div.collection-listing-latest div.latest-listing.mt-4 div.row div.col-12.col-sm.mb-3.mb-sm-0'
+            )
+
+        elif 'thestar.com.my' in response.url:
+            print("parse_articles() for thestar.com.my")
+            return response.css(
+                    'div.content.main-desktop-headline, \
+                    div.content > u1 > li, \
+                    div.col-sm-3.in-sec-story, \
+                    div.row.story-set div.col-xs-12.col-sm-3.mob-bot-20, \
+                    div.col-sm-6.in-sec-story, \
+                    ul#MoreNews-Second.story-set.col-sm-4.col-md-3 li.row.hidden-visual, \
+                    div.row.list-listing, \
+                    ul#justInListing.timeline.vTicker li, \
+                    div.focus section.latest-news div.sub-section-list div.row.list-listing, \
+                    div.featuredDiv div.focus-story div.row div div.col-xs-12.col-sm-4.featuredContent, \
+                    div.row ul.story-set.col-sm-3.story3 li.row.hidden-visual, \
+                    div.story-set-group.story2 div.col-sm-6.in-sec-story div.row div.col-xs-7.left.col-sm-12, \
+                    div#section1.story-set-group div.col-sm-3.in-sec-story div.row div.col-xs-7.left.col-sm-12, \
+                    div#section2.sub-section-list div.row.list-listing div.col-xs-7.col-sm-9, \
+                    div.timeline-content, \
+                    div#story-recom-list.desc-wrap div.desc div.col-xs-7.col-sm-9.col-md-7.left, \
+                    div#divOpinionWidget section.side-combo-2 div.desc-wrap div.row.desc div.col-xs-9.col-sm-10.right, \
+                    div.focus-story.focus-lifestyle div.row div.col-xs-12.col-sm-4, \
+                    div.sub-section-list.story-set-lifestyle div.col-xs-12.col-sm-6.bot-20.lifemain div.row div.col-xs-12.left, \
+                    div#story-recom-list.desc-wrap div.desc, div.row.panel-content'
+            )
 
         elif 'archive.org' in response.url:
             if 'https://archive.org/details/' in response.url:
@@ -876,6 +952,7 @@ class CovidNewsSpider(scrapy.Spider):
             "Click here to read more",
             "READ:",
             "READ MORE:",
+            "Read next",
             "Read more stories",
             "Read more Global Nation stories",
             ". Learn more about",
@@ -1125,6 +1202,10 @@ class CovidNewsSpider(scrapy.Spider):
                         if text in t and j < len(li_texts) - 1:
                             # replace the matching part of the text with t (which has a comma added)
                             body[i] = text.replace(t, t + ',')
+
+                        if text in t and j == len(li_texts) - 1:
+                            # replace the matching part of the text with t (which has a fullstop added)
+                            body[i] = text.replace(t, t + '.')
 
                 if date is None:
                     print("inquirer.net date is None !!!")
