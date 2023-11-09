@@ -55,6 +55,7 @@ inaccessible_subdomain_names = ["olympianbuilder.straitstimes.com", "ststaff.str
                                 "awsstaff.straitstimes.com", "eee.straitstimes.com",
                                 "prdstaff.straitstimes.com", "staff.straitstimes.com",
                                 "stompcms.straitstimes.com",
+                                "classifieds.thestar.com.my",
                                 "news.mb.com.ph",
                                 "inqshop.inquirer.net", "misc.inquirer.net", "nment.inquirer.net",
                                 "inqpop.inquirer.net", "newyorktimes.inquirer.net", "showbizandstyle.inquirer.net",
@@ -79,6 +80,12 @@ irrelevant_subdomain_names = ["channelnewsasia.com/watch/", "cnaluxury.channelne
                               "channelnewsasia.com/author", "straitstimes.com/author",
                               "channelnewsasia.com/women/",
                               "channelnewsasia.com/about-us",
+                              "thestar.com.my/privacy/", "thestar.com.my/Privacy", "thestar.com.my/ContactUs",
+                              "thestar.com.my/lifestyle/", "thestar.com.my/sport/", "events.thestar.com.my",
+                              "thestar.com.my/FAQs", "thestar.com.my/terms/", "advertising.thestar.com.my",
+                              "thestar.com.my/AboutUs", "thestar.com.my/Terms",
+                              "sso.thestar.com.my",
+                              "thestar.com.my/food/", "thestar.com.my/lifestyle/",
                               "entertainment.inquirer.net", "business.inquirer.net", "opinion.inquirer.net",
                               "sports.inquirer.net", "technology.inquirer.net", "usa.inquirer.net",
                               "pop.inquirer.net", "inquirer.net/inqpop", "lifestyle.inquirer.net",
@@ -397,7 +404,7 @@ class CovidNewsSpider(scrapy.Spider):
     def get_next_pages(self, response):
         print("inside get_next_pages(), response.url = ", response.url)
 
-        link = response.url.lower()
+        link = response.url.strip()
 
         domain_name = self.extract_domain_name(link)
 
@@ -483,6 +490,7 @@ class CovidNewsSpider(scrapy.Spider):
         url = re.sub(r"https?://www\.newsinfo\.inquirer\.net", "https://newsinfo.inquirer.net", url)
         url = re.sub(r"https?://nwsinfo\.inquirer\.net", "https://newsinfo.inquirer.net", url)
         url = re.sub(r"https?://www\.cebudailynews\.inquirer\.net", "https://cebudailynews.inquirer.net", url)
+        url = re.sub(r"https?://events\@thestar\.com\.my/", "https://events.thestar.com.my/", url)
 
         if not url.startswith("http"):
             url = urljoin(default_url, url)
@@ -496,7 +504,7 @@ class CovidNewsSpider(scrapy.Spider):
 
     def parse(self, response):
         articles = None
-        link = response.url.lower()
+        link = response.url.strip()
         print("inside parse(), response.url = ", response.url)
 
         INTERNETARCHIVE_FULL_TEXT = \
@@ -560,7 +568,7 @@ class CovidNewsSpider(scrapy.Spider):
 
         for next_page_url in next_pages_url:
             if next_page_url:
-                link = next_page_url.lower()
+                link = next_page_url.strip()
                 domain_name = self.extract_domain_name(link)
 
                 if "javascript" in link or "mailto" in link or "whatsapp://" in link or \
@@ -811,6 +819,22 @@ class CovidNewsSpider(scrapy.Spider):
 
             link = article.css('a::attr(href)').get()
 
+        elif 'nst.com.my' in response.url:
+            title = article.css('h5.card-title a::text').get() or \
+                    article.css('.node-header.h1::text').get()
+            date = article.css('time::text').get() or \
+                    article.css('time::attr(datetime)').get() or \
+                    article.css('.story-postdate::text').get()
+
+            link = article.css('a::attr(href)').get()
+
+        elif 'thestar.com.my' in response.url:
+            title = article.css('h2 a ::text').get() or \
+                    article.css('a ::text').get()
+            date = article.css('span.timestamp ::text').get()
+
+            link = article.css('a::attr(href)').get()
+
         elif 'archive.org' in response.url:
             title = article.css('title::text').get()
             date = article.xpath('//meta[@name="date"]/@content').get()
@@ -833,7 +857,6 @@ class CovidNewsSpider(scrapy.Spider):
 
         if link:
             link = self.fix_url(link, response.url)
-            link = link.lower()
             domain_name = self.extract_domain_name(link)
         else:
             domain_name = None
@@ -1095,6 +1118,10 @@ class CovidNewsSpider(scrapy.Spider):
 
 
     def get_article_content(self, response):
+        # The HTTP 202 status code generally means that the request has been received but not yet acted upon.
+        if response.status == 202:
+            yield None
+
         # retrieves article's detailed title and body properly
         #print("arrived at get_article_content()")
         # Access the additional data here
@@ -1102,7 +1129,7 @@ class CovidNewsSpider(scrapy.Spider):
         date = response.meta['date']
         article_url = response.meta['article_url']
 
-        link = response.url.lower()
+        link = response.url.strip()
         domain_name = self.extract_domain_name(link)
 
         if article_url != link:
@@ -1237,6 +1264,22 @@ class CovidNewsSpider(scrapy.Spider):
                     print("mb.com.ph date is None !!!")
                     date = response.css('.mb-font-article-date::text').get()
 
+            elif 'nst.com.my' in response.url:
+                body = response.css('p ::text').getall()
+                if title is None:
+                    title = response.css('.headline.story-pg h1::text').get()
+
+                if date is None:
+                    date = response.css('p.date::text').get()
+
+            elif 'thestar.com.my' in response.url:
+                body = response.css('p ::text').getall()
+                if title is None:
+                    title = response.css('.headline.story-pg h1::text').get()
+
+                if date is None:
+                    date = response.css('p.date::text').get()
+
             elif 'archive.org' in response.url:
                 body = response.css('div.article p::text').getall() or \
                        response.css('div.text-long').getall() or \
@@ -1245,6 +1288,9 @@ class CovidNewsSpider(scrapy.Spider):
             else:
                 body = None
 
+
+            if title:
+                title = title.strip()  # to remove unnecessary whitespace or newlines characters
 
             if date:
                 date = ''.join(c for c in date if c.isprintable())  # to remove erroneous non-ASCII printable character
@@ -1346,6 +1392,7 @@ class CovidNewsSpider(scrapy.Spider):
         if "month ago" in date.lower() or "months ago" in date.lower() or \
             "week ago" in date.lower() or "weeks ago" in date.lower() or \
             "day ago" in date.lower() or "days ago" in date.lower() or \
+            "h ago" in date.lower() or "m ago" in date.lower() or "s ago" in date.lower() or \
             "hour ago" in date.lower() or "hours ago" in date.lower() or \
             "minute ago" in date.lower() or "minutes ago" in date.lower() or \
             "min ago" in date.lower() or "mins ago" in date.lower() or \
@@ -1366,6 +1413,10 @@ class CovidNewsSpider(scrapy.Spider):
 
             elif search_country == 'philippines':
                 # https://en.wikipedia.org/wiki/COVID-19_community_quarantines_in_the_Philippines
+                date_is_within_covid_period = ((published_year >= 2020) and (published_year <= 2022))
+
+            elif search_country == 'malaysia':
+                # https://en.wikipedia.org/wiki/Malaysian_movement_control_order
                 date_is_within_covid_period = ((published_year >= 2020) and (published_year <= 2022))
 
         print(f"date = {date}, and published_year = {published_year}, and date_is_within_covid_period = {date_is_within_covid_period}")
