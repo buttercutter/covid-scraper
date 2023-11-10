@@ -4,6 +4,14 @@
 # https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 
 from scrapy import signals
+from scrapy.http import HtmlResponse
+
+# For javascript handling
+from selenium import webdriver
+import asyncio
+from scrapy.utils.defer import mustbe_deferred
+from scrapy.utils.python import to_bytes
+from playwright.async_api import async_playwright
 
 # useful for handling different item types with a single interface
 from itemadapter import is_item, ItemAdapter
@@ -40,6 +48,44 @@ class ForgivingHttpCompressionMiddleware(HttpCompressionMiddleware):
             return super().process_response(request, response, spider)
         except gzip.BadGzipFile:
             return response  # Return uncompressed response if decompression fails
+
+
+class SeleniumMiddleware:
+    def __init__(self):
+        self.driver = webdriver.Firefox()
+
+    def __del__(self):
+        self.driver.quit()
+
+    def process_request(self, request, spider):
+        self.driver.get(request.url)
+        return HtmlResponse(self.driver.current_url, body=self.driver.page_source, encoding='utf-8', request=request)
+
+
+class PlaywrightMiddleware:
+    def __init__(self):
+        self.playwright = None
+        self.browser = None
+        self.loop = asyncio.get_event_loop()
+        self.loop.run_until_complete(self.launch_browser())
+
+    async def launch_browser(self):
+        self.playwright = await async_playwright().start()
+        self.browser = await self.playwright.chromium.launch()
+
+    def process_request(self, request, spider):
+        return mustbe_deferred(self._process_request, request, spider)
+
+    async def _process_request(self, request, spider):
+        page = await self.browser.new_page()
+        response = await page.goto(request.url)
+        body = await response.text()
+        await page.close()
+        return HtmlResponse(url=request.url, body=to_bytes(body), encoding='utf-8', request=request)
+
+    def spider_closed(self, spider):
+        self.loop.run_until_complete(self.browser.close())
+        self.loop.run_until_complete(self.playwright.stop())
 
 
 class CovidnewsSpiderMiddleware:

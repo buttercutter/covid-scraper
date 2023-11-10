@@ -6,6 +6,7 @@ import re
 from urllib.parse import urlparse, urlunparse
 from dateutil.parser import parse
 
+import os
 import base64
 from collections import OrderedDict
 from parsel import Selector
@@ -29,6 +30,11 @@ search_country = 'singapore'
 
 # Whether to brute-force search across the entire website hierarchy, due to robots.txt restriction
 SEARCH_ENTIRE_WEBSITE = 1
+
+# For javascript handling
+USE_SPLASH = 0
+USE_SELENIUM = 0
+USE_PLAYWRIGHT = 0
 
 # Whether to skip cdx search
 SKIP_CDX = True
@@ -83,8 +89,8 @@ irrelevant_subdomain_names = ["channelnewsasia.com/watch/", "cnaluxury.channelne
                               "thestar.com.my/privacy/", "thestar.com.my/Privacy", "thestar.com.my/ContactUs",
                               "thestar.com.my/lifestyle/", "thestar.com.my/sport/", "events.thestar.com.my",
                               "thestar.com.my/FAQs", "thestar.com.my/terms/", "advertising.thestar.com.my",
-                              "thestar.com.my/AboutUs", "thestar.com.my/Terms",
-                              "sso.thestar.com.my",
+                              "thestar.com.my/AboutUs", "thestar.com.my/Terms", "mystarauth.thestar.com.my",
+                              "sso.thestar.com.my", "newsstand.thestar.com.my", "thestar.com.my/business/",
                               "thestar.com.my/food/", "thestar.com.my/lifestyle/",
                               "entertainment.inquirer.net", "business.inquirer.net", "opinion.inquirer.net",
                               "sports.inquirer.net", "technology.inquirer.net", "usa.inquirer.net",
@@ -155,19 +161,56 @@ class CovidNewsSpider(scrapy.Spider):
                 'https://www.thestar.com.my/'
             ]
 
+    # settings for Javacript handling
+    if USE_SPLASH:  # scrapy-splash
+        custom_settings = {
+            'DOWNLOADER_MIDDLEWARES': {
+                'scrapy_splash.SplashCookiesMiddleware': 723,
+                'scrapy_splash.SplashMiddleware': 725,
+                'covidnews.middlewares.GzipRetryMiddleware': 543,
+                'covidnews.middlewares.ForgivingHttpCompressionMiddleware': 810,
+            },
 
-    custom_settings = {
-        'DOWNLOADER_MIDDLEWARES': {
-            #'scrapy_splash.SplashCookiesMiddleware': 723,
-            #'scrapy_splash.SplashMiddleware': 725,
-            'covidnews.middlewares.GzipRetryMiddleware': 543,
-            'covidnews.middlewares.ForgivingHttpCompressionMiddleware': 810,
-        },
+            'SPIDER_MIDDLEWARES': {
+                'scrapy_splash.SplashDeduplicateArgsMiddleware': 100,
+            },
+        }
 
-        'SPIDER_MIDDLEWARES': {
-            #'scrapy_splash.SplashDeduplicateArgsMiddleware': 100,
-        },
-    }
+    elif USE_PLAYWRIGHT:
+        custom_settings = {
+            'DOWNLOADER_MIDDLEWARES': {
+                'covidnews.middlewares.GzipRetryMiddleware': 543,
+                'covidnews.middlewares.ForgivingHttpCompressionMiddleware': 810,
+            },
+
+            'SPIDER_MIDDLEWARES': {
+                'covidnews.middlewares.PlaywrightMiddleware': 800,
+            },
+        }
+        os.system('playwright install')
+
+    elif USE_SELENIUM:
+        custom_settings = {
+            'DOWNLOADER_MIDDLEWARES': {
+                'covidnews.middlewares.GzipRetryMiddleware': 543,
+                'covidnews.middlewares.ForgivingHttpCompressionMiddleware': 810,
+            },
+
+            'SPIDER_MIDDLEWARES': {
+                'covidnews.middlewares.SeleniumMiddleware': 800,
+            },
+        }
+
+    else:  # just scrapy
+        custom_settings = {
+            'DOWNLOADER_MIDDLEWARES': {
+                'covidnews.middlewares.GzipRetryMiddleware': 543,
+                'covidnews.middlewares.ForgivingHttpCompressionMiddleware': 810,
+            },
+
+            'SPIDER_MIDDLEWARES': {
+            },
+        }
 
     if TEST_SPECIFIC:
 
@@ -503,6 +546,10 @@ class CovidNewsSpider(scrapy.Spider):
 
 
     def parse(self, response):
+        # The HTTP 202 status code generally means that the request has been received but not yet acted upon.
+        if response.status == 202:
+            yield None
+
         articles = None
         link = response.url.strip()
         print("inside parse(), response.url = ", response.url)
@@ -729,6 +776,7 @@ class CovidNewsSpider(scrapy.Spider):
                     div#divOpinionWidget section.side-combo-2 div.desc-wrap div.row.desc div.col-xs-9.col-sm-10.right, \
                     div.focus-story.focus-lifestyle div.row div.col-xs-12.col-sm-4, \
                     div.sub-section-list.story-set-lifestyle div.col-xs-12.col-sm-6.bot-20.lifemain div.row div.col-xs-12.left, \
+                    div#queryly_advanced_container div#resultdata div.queryly_item_container div.row.list-listing, \
                     div#story-recom-list.desc-wrap div.desc, div.row.panel-content'
             )
 
@@ -1328,7 +1376,7 @@ class CovidNewsSpider(scrapy.Spider):
                 else:
                     yield SplashRequest(
                          url=new_article_url,
-                         callback=self.write_to_local_data,
+                         callback=self.get_article_content,
                          meta={'link': new_article_url, 'title': title, 'body': body, 'date': date},  # Pass additional data here
                          #endpoint='render.html',  # for non-pure html with javascript
                          endpoint='execute',  # for closing advertising overlay page to get to desired page
