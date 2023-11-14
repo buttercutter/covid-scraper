@@ -62,6 +62,8 @@ class SeleniumMiddleware:
         return HtmlResponse(self.driver.current_url, body=self.driver.page_source, encoding='utf-8', request=request)
 
 
+from twisted.internet import defer
+
 class PlaywrightMiddleware:
     def __init__(self):
         self.playwright = None
@@ -73,10 +75,7 @@ class PlaywrightMiddleware:
         self.playwright = await async_playwright().start()
         self.browser = await self.playwright.chromium.launch()
 
-    def process_request(self, request, spider):
-        return mustbe_deferred(self._process_request, request, spider)
-
-    async def _process_request(self, request, spider):
+    async def process_request(self, request, spider):
         page = await self.browser.new_page()
         response = await page.goto(request.url)
         body = await response.text()

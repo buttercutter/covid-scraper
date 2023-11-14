@@ -79,7 +79,8 @@ irrelevant_subdomain_names = ["channelnewsasia.com/watch/", "cnaluxury.channelne
                               "straitstimes.com/sport/", "straitstimes.com/business/",
                               "straitstimes.com/world/",
                               "straitstimes.com/life/", "straitstimes.com/lifestyle/entertainment/",
-                              "straitstimes.com/asia/east-asia/", "ge2015social.straitstimes.com",
+                              "straitstimes.com/asia/south-asia/", "straitstimes.com/asia/east-asia/",
+                              "straitstimes.com/asia/australianz/", "ge2015social.straitstimes.com",
                               "channelnewsasia.com/asia/east-asia/", "channelnewsasia.com/asia/south-asia/",
                               "channelnewsasia.com/world/", "channelnewsasia.com/sport/",
                               "channelnewsasia.com/business", "channelnewsasia.com/entertainment",
@@ -87,11 +88,13 @@ irrelevant_subdomain_names = ["channelnewsasia.com/watch/", "cnaluxury.channelne
                               "channelnewsasia.com/women/",
                               "channelnewsasia.com/about-us",
                               "thestar.com.my/privacy/", "thestar.com.my/Privacy", "thestar.com.my/ContactUs",
-                              "thestar.com.my/lifestyle/", "thestar.com.my/sport/", "events.thestar.com.my",
+                              "thestar.com.my/lifestyle/", "thestar.com.my/sport", "events.thestar.com.my",
                               "thestar.com.my/FAQs", "thestar.com.my/terms/", "advertising.thestar.com.my",
                               "thestar.com.my/AboutUs", "thestar.com.my/Terms", "mystarauth.thestar.com.my",
-                              "sso.thestar.com.my", "newsstand.thestar.com.my", "thestar.com.my/business/",
-                              "thestar.com.my/food/", "thestar.com.my/lifestyle/",
+                              "sso.thestar.com.my", "newsstand.thestar.com.my", "login.thestar.com.my",
+                              "thestar.com.my/faqs", "thestar.com.my/subscribe", "thestar.com.my/subscription",
+                              "thestar.com.my/business/", "ads.thestar.com.my",
+                              "thestar.com.my/food", "thestar.com.my/lifestyle",
                               "entertainment.inquirer.net", "business.inquirer.net", "opinion.inquirer.net",
                               "sports.inquirer.net", "technology.inquirer.net", "usa.inquirer.net",
                               "pop.inquirer.net", "inquirer.net/inqpop", "lifestyle.inquirer.net",
@@ -177,17 +180,17 @@ class CovidNewsSpider(scrapy.Spider):
         }
 
     elif USE_PLAYWRIGHT:
+        os.system('playwright install')
         custom_settings = {
             'DOWNLOADER_MIDDLEWARES': {
                 'covidnews.middlewares.GzipRetryMiddleware': 543,
                 'covidnews.middlewares.ForgivingHttpCompressionMiddleware': 810,
+                'covidnews.middlewares.PlaywrightMiddleware': 800,
             },
 
             'SPIDER_MIDDLEWARES': {
-                'covidnews.middlewares.PlaywrightMiddleware': 800,
             },
         }
-        os.system('playwright install')
 
     elif USE_SELENIUM:
         custom_settings = {
@@ -1013,6 +1016,7 @@ class CovidNewsSpider(scrapy.Spider):
             "© 2023 The Financial Times",
             "(Source: AP)",
             "(Reporting by",
+            "Additional reporting by",
             "Edited by",
             "Brought to you by",
             "—With a report from",
@@ -1430,6 +1434,10 @@ class CovidNewsSpider(scrapy.Spider):
 
 
     def write_to_local_data(self, response, link=None, title=None, body=None, date=None):
+        # The HTTP 202 status code generally means that the request has been received but not yet acted upon.
+        if response.status == 202:
+            yield None
+
         # Access the additional data here
         if not link and not title and not date:
             link = response.meta['link']
