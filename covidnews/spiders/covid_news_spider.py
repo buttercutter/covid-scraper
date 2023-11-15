@@ -168,14 +168,14 @@ class CovidNewsSpider(scrapy.Spider):
     if USE_SPLASH:  # scrapy-splash
         custom_settings = {
             'DOWNLOADER_MIDDLEWARES': {
-                'scrapy_splash.SplashCookiesMiddleware': 723,
-                'scrapy_splash.SplashMiddleware': 725,
                 'covidnews.middlewares.GzipRetryMiddleware': 543,
                 'covidnews.middlewares.ForgivingHttpCompressionMiddleware': 810,
             },
 
             'SPIDER_MIDDLEWARES': {
                 'scrapy_splash.SplashDeduplicateArgsMiddleware': 100,
+                'scrapy_splash.SplashCookiesMiddleware': 723,
+                'scrapy_splash.SplashMiddleware': 725,
             },
         }
 
@@ -197,10 +197,10 @@ class CovidNewsSpider(scrapy.Spider):
             'DOWNLOADER_MIDDLEWARES': {
                 'covidnews.middlewares.GzipRetryMiddleware': 543,
                 'covidnews.middlewares.ForgivingHttpCompressionMiddleware': 810,
+                'covidnews.middlewares.SeleniumMiddleware': 800,
             },
 
             'SPIDER_MIDDLEWARES': {
-                'covidnews.middlewares.SeleniumMiddleware': 800,
             },
         }
 
@@ -780,6 +780,7 @@ class CovidNewsSpider(scrapy.Spider):
                     div.focus-story.focus-lifestyle div.row div.col-xs-12.col-sm-4, \
                     div.sub-section-list.story-set-lifestyle div.col-xs-12.col-sm-6.bot-20.lifemain div.row div.col-xs-12.left, \
                     div#queryly_advanced_container div#resultdata div.queryly_item_container div.row.list-listing, \
+                    div.thumb__container.viewpoints__stories.row div.col-sm-6.thumb__item div.thumb.thumb--vp div.thumb__inner, \
                     div#story-recom-list.desc-wrap div.desc, div.row.panel-content'
             )
 
@@ -1436,7 +1437,8 @@ class CovidNewsSpider(scrapy.Spider):
     def write_to_local_data(self, response, link=None, title=None, body=None, date=None):
         # The HTTP 202 status code generally means that the request has been received but not yet acted upon.
         if response.status == 202:
-            yield None
+            print("response.status == 202")
+            return None
 
         # Access the additional data here
         if not link and not title and not date:
