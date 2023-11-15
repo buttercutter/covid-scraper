@@ -781,6 +781,7 @@ class CovidNewsSpider(scrapy.Spider):
                     div.sub-section-list.story-set-lifestyle div.col-xs-12.col-sm-6.bot-20.lifemain div.row div.col-xs-12.left, \
                     div#queryly_advanced_container div#resultdata div.queryly_item_container div.row.list-listing, \
                     div.thumb__container.viewpoints__stories.row div.col-sm-6.thumb__item div.thumb.thumb--vp div.thumb__inner, \
+                    div.opinion-content div div.row.story-set div.col-xs-12.col-sm-4.bot-20, \
                     div#story-recom-list.desc-wrap div.desc, div.row.panel-content'
             )
 
@@ -809,6 +810,10 @@ class CovidNewsSpider(scrapy.Spider):
 
 
     def parse_article(self, article, response):
+        title = None
+        date = None
+        link = None
+
         if 'channelnewsasia' in response.url:
             title = article.css('title::text').get() or \
                     article.css('h1.entry-title::text').get() or \
@@ -872,18 +877,21 @@ class CovidNewsSpider(scrapy.Spider):
             link = article.css('a::attr(href)').get()
 
         elif 'nst.com.my' in response.url:
-            title = article.css('h5.card-title a::text').get() or \
-                    article.css('.node-header.h1::text').get()
-            date = article.css('time::text').get() or \
-                    article.css('time::attr(datetime)').get() or \
-                    article.css('.story-postdate::text').get()
+            title = article.css('h1.page-title.mb-2 span.d-inline-block.mr-1::text').get()
+            if article.css('div.article-meta > div::text').get():
+                date = article.css('div.article-meta > div::text').get().split(' @ ')[0]
 
             link = article.css('a::attr(href)').get()
 
         elif 'thestar.com.my' in response.url:
             title = article.css('h2 a ::text').get() or \
                     article.css('a ::text').get()
-            date = article.css('span.timestamp ::text').get()
+
+            if article.css('span.timestamp ::text').get():
+                date = article.css('span.timestamp ::text').get().split(' | ')[0]
+
+            if date is None and article.css('label.timestamp ::text').get():
+                date = article.css('label.timestamp ::text').get().split(' | ')[0]
 
             link = article.css('a::attr(href)').get()
 
@@ -1382,7 +1390,7 @@ class CovidNewsSpider(scrapy.Spider):
                     yield SplashRequest(
                          url=new_article_url,
                          callback=self.get_article_content,
-                         meta={'link': new_article_url, 'title': title, 'body': body, 'date': date},  # Pass additional data here
+                         meta={'title': title, 'date': date, 'article_url': new_article_url, 'body': body},  # Pass additional data here
                          #endpoint='render.html',  # for non-pure html with javascript
                          endpoint='execute',  # for closing advertising overlay page to get to desired page
                          args={'lua_source': self.js_script,
@@ -1439,13 +1447,6 @@ class CovidNewsSpider(scrapy.Spider):
         if response.status == 202:
             print("response.status == 202")
             return None
-
-        # Access the additional data here
-        if not link and not title and not date:
-            link = response.meta['link']
-            title = response.meta['title']
-            body = response.meta['body']
-            date = response.meta['date']
 
         if "month ago" in date.lower() or "months ago" in date.lower() or \
             "week ago" in date.lower() or "weeks ago" in date.lower() or \
