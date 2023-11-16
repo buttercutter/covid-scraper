@@ -87,6 +87,10 @@ irrelevant_subdomain_names = ["channelnewsasia.com/watch/", "cnaluxury.channelne
                               "channelnewsasia.com/author", "straitstimes.com/author",
                               "channelnewsasia.com/women/",
                               "channelnewsasia.com/about-us",
+                              "nst.com.my/lifestyle", "nst.com.my/news-cars-bikes-trucks", "nst.com.my/property",
+                              "nst.com.my/business", "nst.com.my/videos", "nst.com.my/sports",
+                              "nst.com.my/podcast", "nst.com.my/flyfm", "nst.com.my/buletinfm",
+                              "nst.com.my/hotfm", "nst.com.my/8fm", "nst.com.my/molekfm",
                               "thestar.com.my/privacy/", "thestar.com.my/Privacy", "thestar.com.my/ContactUs",
                               "thestar.com.my/lifestyle/", "thestar.com.my/sport", "events.thestar.com.my",
                               "thestar.com.my/FAQs", "thestar.com.my/terms/", "advertising.thestar.com.my",
@@ -95,6 +99,9 @@ irrelevant_subdomain_names = ["channelnewsasia.com/watch/", "cnaluxury.channelne
                               "thestar.com.my/faqs", "thestar.com.my/subscribe", "thestar.com.my/subscription",
                               "thestar.com.my/business/", "ads.thestar.com.my",
                               "thestar.com.my/food", "thestar.com.my/lifestyle",
+                              "thestar.com.my/news/world", "thestar.com.my/world/world",
+                              "thestar.com.my/tag/forex", "thestar.com.my/tag/banking", "thestar.com.my/tag/cryptocurrency",
+                              "thestar.com.my/tag/energy",
                               "entertainment.inquirer.net", "business.inquirer.net", "opinion.inquirer.net",
                               "sports.inquirer.net", "technology.inquirer.net", "usa.inquirer.net",
                               "pop.inquirer.net", "inquirer.net/inqpop", "lifestyle.inquirer.net",
@@ -725,8 +732,7 @@ class CovidNewsSpider(scrapy.Spider):
         elif 'nst.com.my' in response.url:
             print("parse_articles() for nst.com.my")
             return response.css(
-                    'div.row.mb-4 div.col-md-4.col-lg-3.order-2.order-sm-1.mb-4.mb-sm-0 div.mb-4, \
-                    div.row.mb-4 div.col-md-4.col-lg-3.order-2.order-sm-1.mb-4.mb-sm-0 div div.block.block-article-image-row-listing, \
+                    'div.row.mb-4 div.col-md-4.col-lg-3.order-2.order-sm-1.mb-4.mb-sm-0 div.mb-4 div.block.block-article-image-row-listing div.d-flex.flex-row.mb-3, \
                     \
                     div.block.block-breaking-news div.d-flex.mb-3, \
                     div.block.block-breaking-news div.row div.col-12.col-sm.mb-4.mb-sm-0, \
@@ -762,24 +768,22 @@ class CovidNewsSpider(scrapy.Spider):
             return response.css(
                     'div.content.main-desktop-headline, \
                     div.content > u1 > li, \
-                    div.col-sm-3.in-sec-story, \
-                    div.row.story-set div.col-xs-12.col-sm-3.mob-bot-20, \
-                    div.col-sm-6.in-sec-story, \
+                    div.col-sm-3.in-sec-story div.row div.col-xs-7.left.col-sm-12 h2, \
+                    div.row.story-set div.col-xs-12.col-sm-3.mob-bot-20 div.col-wrap div.col-content h2, \
+                    div.col-sm-6.in-sec-story div.row div.col-xs-7.left.col-sm-12 h2, \
                     ul#MoreNews-Second.story-set.col-sm-4.col-md-3 li.row.hidden-visual, \
-                    div.row.list-listing, \
-                    ul#justInListing.timeline.vTicker li, \
+                    div.row.list-listing div.col-xs-7.col-sm-9 h2, \
+                    ul#justInListing.timeline.vTicker li.row div.col-xs-8.col-sm-10.col-md-9.tm-content-wrap div.timeline-content p a, \
                     div.focus section.latest-news div.sub-section-list div.row.list-listing, \
                     div.featuredDiv div.focus-story div.row div div.col-xs-12.col-sm-4.featuredContent, \
                     div.row ul.story-set.col-sm-3.story3 li.row.hidden-visual, \
                     div.story-set-group.story2 div.col-sm-6.in-sec-story div.row div.col-xs-7.left.col-sm-12, \
                     div#section1.story-set-group div.col-sm-3.in-sec-story div.row div.col-xs-7.left.col-sm-12, \
                     div#section2.sub-section-list div.row.list-listing div.col-xs-7.col-sm-9, \
-                    div.timeline-content, \
                     div#story-recom-list.desc-wrap div.desc div.col-xs-7.col-sm-9.col-md-7.left, \
                     div#divOpinionWidget section.side-combo-2 div.desc-wrap div.row.desc div.col-xs-9.col-sm-10.right, \
                     div.focus-story.focus-lifestyle div.row div.col-xs-12.col-sm-4, \
                     div.sub-section-list.story-set-lifestyle div.col-xs-12.col-sm-6.bot-20.lifemain div.row div.col-xs-12.left, \
-                    div#queryly_advanced_container div#resultdata div.queryly_item_container div.row.list-listing, \
                     div.thumb__container.viewpoints__stories.row div.col-sm-6.thumb__item div.thumb.thumb--vp div.thumb__inner, \
                     div.opinion-content div div.row.story-set div.col-xs-12.col-sm-4.bot-20, \
                     div#story-recom-list.desc-wrap div.desc, div.row.panel-content'
@@ -1031,6 +1035,7 @@ class CovidNewsSpider(scrapy.Spider):
             "—With a report from",
             "—WITH REPORTS FROM",
             "—Jerome",
+            "- Jakarta Post",
             "[ac]",
             "Click here for more",
             "Click here to read more",
@@ -1046,9 +1051,11 @@ class CovidNewsSpider(scrapy.Spider):
             "RELATED VIDEO",
             "catch the olympics games",
             "cna women is a section on cna",
+            "Do you have questions",
             "Write to us at",
             ". Subscribe to",
             "We use cookies",
+            "Tags / Keywords:",
             "For more news about the novel coronavirus click here",
             "Follow INQUIRER.net",
             "The Inquirer Foundation",
@@ -1327,14 +1334,15 @@ class CovidNewsSpider(scrapy.Spider):
 
             elif 'nst.com.my' in response.url:
                 body = response.css('p ::text').getall()
-                if title is None:
-                    title = response.css('.headline.story-pg h1::text').get()
 
-                if date is None:
-                    date = response.css('p.date::text').get()
+                if title is None:
+                    title = response.css('h1.page-title.mb-2 span.d-inline-block.mr-1::text').get()
+
+                if date is None and response.css('div.article-meta > div::text').get():
+                    date = response.css('div.article-meta > div::text').get().split(' @ ')[0]
 
             elif 'thestar.com.my' in response.url:
-                body = response.css('p ::text').getall()
+                body = response.css('p:not(.caption):not(.date) ::text').getall()
                 if title is None:
                     title = response.css('.headline.story-pg h1::text').get()
 
