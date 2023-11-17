@@ -6,6 +6,8 @@
 from scrapy import signals
 from scrapy.http import HtmlResponse
 
+import logging
+
 # For javascript handling
 from selenium import webdriver
 import asyncio
@@ -52,6 +54,8 @@ class ForgivingHttpCompressionMiddleware(HttpCompressionMiddleware):
 
 class SeleniumMiddleware:
     def __init__(self):
+        selenium_logger = logging.getLogger('selenium.webdriver.remote.remote_connection')
+        selenium_logger.setLevel(logging.ERROR)
         self.driver = webdriver.Firefox()
 
     def __del__(self):

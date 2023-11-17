@@ -91,6 +91,7 @@ irrelevant_subdomain_names = ["channelnewsasia.com/watch/", "cnaluxury.channelne
                               "nst.com.my/business", "nst.com.my/videos", "nst.com.my/sports",
                               "nst.com.my/podcast", "nst.com.my/flyfm", "nst.com.my/buletinfm",
                               "nst.com.my/hotfm", "nst.com.my/8fm", "nst.com.my/molekfm",
+                              "nst.com.my/photos",
                               "thestar.com.my/privacy/", "thestar.com.my/Privacy", "thestar.com.my/ContactUs",
                               "thestar.com.my/lifestyle/", "thestar.com.my/sport", "events.thestar.com.my",
                               "thestar.com.my/FAQs", "thestar.com.my/terms/", "advertising.thestar.com.my",
@@ -101,7 +102,7 @@ irrelevant_subdomain_names = ["channelnewsasia.com/watch/", "cnaluxury.channelne
                               "thestar.com.my/food", "thestar.com.my/lifestyle",
                               "thestar.com.my/news/world", "thestar.com.my/world/world",
                               "thestar.com.my/tag/forex", "thestar.com.my/tag/banking", "thestar.com.my/tag/cryptocurrency",
-                              "thestar.com.my/tag/energy",
+                              "thestar.com.my/tag/energy", "thestar.com.my/tag/smartphones",
                               "entertainment.inquirer.net", "business.inquirer.net", "opinion.inquirer.net",
                               "sports.inquirer.net", "technology.inquirer.net", "usa.inquirer.net",
                               "pop.inquirer.net", "inquirer.net/inqpop", "lifestyle.inquirer.net",
@@ -130,11 +131,16 @@ class CovidNewsSpider(scrapy.Spider):
 
     if TEST_SPECIFIC:
         start_urls = [
-                      "https://opinion.inquirer.net/",  # date is None
-                      "https://business.inquirer.net/column/for-laws-sake",  # date is None
-                      "https://lifestyle.inquirer.net/478043/bounty-fresh-chickens-chicky-stars-in-bgcs-3d-billboard/",  # dateutil.parser._parser.ParserError: Unknown string format: lifestyle
-                      "https://technology.inquirer.net/126933/how-to-use-free-chatgpt-custom-instructions",  # dateutil.parser._parser.ParserError: String does not contain a date:
-                      "https://technology.inquirer.net/126943/gptbot-web-crawler",  # dateutil.parser._parser.ParserError: String does not contain a date
+                      "https://www.thestar.com.my/business/business-news/2023/10/16/fbm-klci-edges-down-at-midday-on-cautious-sentiment",  # empty body list
+                      "https://www.thestar.com.my/business/business-news/2023/10/12/limited-impact-on-oil-prices-for-now",  # empty body list
+                      "https://www.thestar.com.my/aseanplus/aseanplus-news/2022/10/04/asean-news-headlines-at-9pm-on-tuesday-oct-4-2022",  # need to manually scrape due to limitation in how I could code the xpath() for 'body' especially for <li> tags
+                      "https://www.thestar.com.my/aseanplus/aseanplus-news/2022/10/16/chinas-talent-war-tussle-as-red-tape-us-tensions-shrink-labour-pool-amid-people-decoupling",  # need to manually scrape to recheck 'body' xpath() logic
+                      "https://newsinfo.inquirer.net/1580989/no-new-covid-19-cases-recorded-in-pateros-for-fourth-consecutive-day",  # need to manually scrape due to limitation in how I could code the xpath() for 'body' especially for <li> tags
+                      "https://www.channelnewsasia.com/singapore/sinovac-covid-19-vaccine-national-vaccination-programme-three-dose-singapore-2263787",  # need to manually scrape due to limitation in how I could code the xpath() for 'body' especially for <li> tags
+                      "https://globalnation.inquirer.net/187527/dfa-records-21-new-covid-19-cases-of-filipinos-abroad-total-now-at-1922",  # need to manually scrape due to limitation in how I could code the xpath() for 'body' especially for <p><b> tags
+                      "https://newsinfo.inquirer.net/1477559/vigan-city-extends-stricter-curbs-under-mecq-due-to-virus-surge",  # need to manually remove footnote
+                      "https://globalnation.inquirer.net/153570/sen-cayetano-confirms-wikipedia-report",  # new_article_url variable is not working yet
+                      "https://globalnation.inquirer.net/153864/duterte-looking-better-trump",  # new_article_url variable is not working yet
                       "https://www.straitstimes.com/singapore/jobs/government-unions-employer-groups-start-work-on-guidelines-on-flexible-work-arrangements",  # title.lower()
                       "https://www.channelnewsasia.com/advertorial/building-global-healthcare-ecosystem-care-good-2943211",  # AttributeError: 'list' object has no attribute 'lower'
                       "https://www.channelnewsasia.com/remarkableliving/kausmo-educating-singapore-diners-about-food-wastage-1882711",  # AttributeError: 'list' object has no attribute 'lower'
@@ -755,7 +761,7 @@ class CovidNewsSpider(scrapy.Spider):
                     div.col-12.col-lg.article-listing div.inner-wrapper.h-100.p-3.d-flex.flex-column.justify-content-between a.d-flex.article.listing.mb-2, \
                     div.col-12.col-lg div.inner-wrapper.h-100.p-3.d-flex.flex-column.justify-content-between a.d-flex.article.listing.mb-2, \
                     \
-                    div.article-listing div.article-teaser, \
+                    div.article-listing div.article-teaser a.d-flex.article.listing.mb-3.pb-3 div.content.pl-2.pl-lg-3.col h6.field-title, \
                     div#trending-block.block.my-4 div.block-content.d-block.position-relative a.d-flex.article.listing.mb-2.pb-2.border-bottom, \
                     \
                     div.block.block-single-listing, \
@@ -779,13 +785,13 @@ class CovidNewsSpider(scrapy.Spider):
                     div.row ul.story-set.col-sm-3.story3 li.row.hidden-visual, \
                     div.story-set-group.story2 div.col-sm-6.in-sec-story div.row div.col-xs-7.left.col-sm-12, \
                     div#section1.story-set-group div.col-sm-3.in-sec-story div.row div.col-xs-7.left.col-sm-12, \
-                    div#section2.sub-section-list div.row.list-listing div.col-xs-7.col-sm-9, \
+                    div#section2.sub-section-list div.row.list-listing div.col-xs-7.col-sm-9 h2, \
                     div#story-recom-list.desc-wrap div.desc div.col-xs-7.col-sm-9.col-md-7.left, \
                     div#divOpinionWidget section.side-combo-2 div.desc-wrap div.row.desc div.col-xs-9.col-sm-10.right, \
                     div.focus-story.focus-lifestyle div.row div.col-xs-12.col-sm-4, \
                     div.sub-section-list.story-set-lifestyle div.col-xs-12.col-sm-6.bot-20.lifemain div.row div.col-xs-12.left, \
                     div.thumb__container.viewpoints__stories.row div.col-sm-6.thumb__item div.thumb.thumb--vp div.thumb__inner, \
-                    div.opinion-content div div.row.story-set div.col-xs-12.col-sm-4.bot-20, \
+                    div.opinion-content div div.row.story-set div.col-xs-12.col-sm-4.bot-20 div.col-wrap div.col-content h2, \
                     div#story-recom-list.desc-wrap div.desc, div.row.panel-content'
             )
 
@@ -1020,6 +1026,7 @@ class CovidNewsSpider(scrapy.Spider):
             "is a senior lecturer",
             "is President of",
             "Editor's note",
+            "Brian Martin is the managing editor of The Star",
             "this article originally appear",
             "© The New York Times",
             "© 2023 the new york times",
@@ -1036,6 +1043,8 @@ class CovidNewsSpider(scrapy.Spider):
             "—WITH REPORTS FROM",
             "—Jerome",
             "- Jakarta Post",
+            "- AFP",
+            "- Bloomberg",
             "[ac]",
             "Click here for more",
             "Click here to read more",
@@ -1046,13 +1055,17 @@ class CovidNewsSpider(scrapy.Spider):
             "Read more Global Nation stories",
             ". Learn more about",
             "For more information about",
+            "For the latest news from",
+            "RELATED:",
             "RELATED STORIES",
             "RELATED STORY",
             "RELATED VIDEO",
+            "TOPIC:",
+            "Reference:",
             "catch the olympics games",
             "cna women is a section on cna",
-            "Do you have questions",
             "Write to us at",
+            "Subscribe now to",
             ". Subscribe to",
             "We use cookies",
             "Tags / Keywords:",
@@ -1060,6 +1073,7 @@ class CovidNewsSpider(scrapy.Spider):
             "Follow INQUIRER.net",
             "The Inquirer Foundation",
             "ADVT",
+            "Report it to us",
             "COPYRIGHT ©",
             "copyright© mediacorp 2023"
         ]
@@ -1342,7 +1356,9 @@ class CovidNewsSpider(scrapy.Spider):
                     date = response.css('div.article-meta > div::text').get().split(' @ ')[0]
 
             elif 'thestar.com.my' in response.url:
-                body = response.css('p:not(.caption):not(.date) ::text').getall()
+                #body = response.css('p:not(.caption):not(.date) ::text').getall()
+                body = response.xpath('//p[not(contains(@class, "caption")) and not(contains(@class, "date")) and not(contains(., "Do you have question")) and not(ancestor::div[@class="plan-temp_desc relative"]) and not(.//span[contains(@class, "inline-caption")])]//text()').getall()
+
                 if title is None:
                     title = response.css('.headline.story-pg h1::text').get()
 
