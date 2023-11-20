@@ -108,13 +108,18 @@ irrelevant_subdomain_names = ["channelnewsasia.com/watch/", "cnaluxury.channelne
                               "pop.inquirer.net", "inquirer.net/inqpop", "lifestyle.inquirer.net",
                               "mb.com.ph/our-company"]
 
-# articles that are published with only a title, and without any body content and publish date
+# articles that are 404 broken links, or published with only a title, and without any body content and publish date
 incomplete_articles = ["https://www.straitstimes.com/singapore/education/ask-sandra-jc-mergers",
                        "https://www.straitstimes.com/business/economy/askst-what-benefits-did-budget-2016-offer-entrepreneurs-and-single-women",
                        "https://www.straitstimes.com/singapore/does-getting-zika-infection-once-confer-immunity",
                        "https://www.straitstimes.com/tags/bhumibol-adulyadej",
                        "https://www.straitstimes.com/askst/steely-stand-off",
                        "https://www.straitstimes.com/singapore/environment/askst-is-it-safe-to-eat-spinach-leaves-which-have-white-spots-on-them",
+                       "https://www.thestar.com.my/metro/metro-news/2020/07/20/",
+                       "https://www.thestar.com.my/news/nation/2022/10/19/",
+                       "https://www.thestar.com.my/aseanplus/aseanplus-news/2021/09/07/",
+                       "https://www.thestar.com.my/2003/06/09/all-dried-out",
+                       "https://www.thestar.com.my/tech/tech-news/2023/06/13/stock-list.asp",
                        "https://mb.com.ph/rss/articles"
                         ]
 
@@ -742,7 +747,7 @@ class CovidNewsSpider(scrapy.Spider):
                     \
                     div.block.block-breaking-news div.d-flex.mb-3, \
                     div.block.block-breaking-news div.row div.col-12.col-sm.mb-4.mb-sm-0, \
-                    div.block.block-breaking-news div.row div.col.col-sm.align-items-center.article-listing div.d-flex.flex-column.h-100.justify-content-between a.d-flex.article.listing.mb-2, \
+                    div.block.block-breaking-news div.row div.col.col-sm.align-items-center.article-listing div.d-flex.flex-column.h-100.justify-content-between a.d-flex.article.listing.mb-2 div.content.pl-2 div.field-title, \
                     \
                     div.most-popular.block div#__BVID__12.tabs div#__BVID__12__BV_tab_container_.tab-content.pt-2 div#__BVID__13.tab-pane.active div.timeline.pt-3 ul li.d-flex.pb-3, \
                     div.most-popular.block div#__BVID__12.tabs div#__BVID__12__BV_tab_container_.tab-content.pt-2 div#__BVID__15.tab-pane.active div.ranked-listing div.ranked-item.d-flex.px-3.pb-2.mb-2.align-items-center.timeline, \
@@ -973,6 +978,8 @@ class CovidNewsSpider(scrapy.Spider):
 
 
     def remove_photograph_credit(self, text):
+        text = re.sub(r"\(.*?pic.*?\)", "", text)
+        text = re.sub(r"\(.*?Pic.*?\)", "", text)
         text = re.sub(r"\(Image: .+?\)", "", text)
         text = re.sub(r"\(Photo.+?\)", "", text)
         text = re.sub(r".+?Photo from.+?\n", "", text)
@@ -1042,9 +1049,17 @@ class CovidNewsSpider(scrapy.Spider):
             "—With a report from",
             "—WITH REPORTS FROM",
             "—Jerome",
+            "— KHIRTHNADHEVI KUMAR",
             "- Jakarta Post",
+            "— Jakarta Post",
             "- AFP",
+            "— AFP",
             "- Bloomberg",
+            "— Bloomberg",
+            "- Bernama",
+            "— Bernama",
+            "- The Nation Thailand/ANN",
+            "— The Nation Thailand/ANN",
             "[ac]",
             "Click here for more",
             "Click here to read more",
@@ -1053,7 +1068,9 @@ class CovidNewsSpider(scrapy.Spider):
             "Read next",
             "Read more stories",
             "Read more Global Nation stories",
+            "More from South China Morning Post:",
             ". Learn more about",
+            "For more news like this",
             "For more information about",
             "For the latest news from",
             "RELATED:",
@@ -1357,7 +1374,7 @@ class CovidNewsSpider(scrapy.Spider):
 
             elif 'thestar.com.my' in response.url:
                 #body = response.css('p:not(.caption):not(.date) ::text').getall()
-                body = response.xpath('//p[not(contains(@class, "caption")) and not(contains(@class, "date")) and not(contains(., "Do you have question")) and not(ancestor::div[@class="plan-temp_desc relative"]) and not(.//span[contains(@class, "inline-caption")])]//text()').getall()
+                body = response.xpath('//p[not(contains(@class, "caption")) and not(contains(@class, "date")) and not(contains(@class, "reactions__desc")) and not(contains(., "Do you have question")) and not(ancestor::div[@class="plan-temp_desc relative"]) and not(.//span[contains(@class, "inline-caption")])]//text()').getall()
 
                 if title is None:
                     title = response.css('.headline.story-pg h1::text').get()
