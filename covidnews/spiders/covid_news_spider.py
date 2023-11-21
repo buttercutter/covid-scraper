@@ -91,7 +91,7 @@ irrelevant_subdomain_names = ["channelnewsasia.com/watch/", "cnaluxury.channelne
                               "nst.com.my/business", "nst.com.my/videos", "nst.com.my/sports",
                               "nst.com.my/podcast", "nst.com.my/flyfm", "nst.com.my/buletinfm",
                               "nst.com.my/hotfm", "nst.com.my/8fm", "nst.com.my/molekfm",
-                              "nst.com.my/photos",
+                              "nst.com.my/photos", "nst.com.my/nst175", "vouchers.nst.com.my",
                               "thestar.com.my/privacy/", "thestar.com.my/Privacy", "thestar.com.my/ContactUs",
                               "thestar.com.my/lifestyle/", "thestar.com.my/sport", "events.thestar.com.my",
                               "thestar.com.my/FAQs", "thestar.com.my/terms/", "advertising.thestar.com.my",
@@ -136,6 +136,7 @@ class CovidNewsSpider(scrapy.Spider):
 
     if TEST_SPECIFIC:
         start_urls = [
+                      "https://www.thestar.com.my/news/nation/2022/07/15/16th-pkr-national-congress-begins-today",  # need to check whether to ignore all <strong> tags for `ALSO READ:` in the middle of paragraph during `body` extraction since it is also a part of footnote phrase
                       "https://www.thestar.com.my/business/business-news/2023/10/16/fbm-klci-edges-down-at-midday-on-cautious-sentiment",  # empty body list
                       "https://www.thestar.com.my/business/business-news/2023/10/12/limited-impact-on-oil-prices-for-now",  # empty body list
                       "https://www.thestar.com.my/aseanplus/aseanplus-news/2022/10/04/asean-news-headlines-at-9pm-on-tuesday-oct-4-2022",  # need to manually scrape due to limitation in how I could code the xpath() for 'body' especially for <li> tags
@@ -751,6 +752,7 @@ class CovidNewsSpider(scrapy.Spider):
                     \
                     div.most-popular.block div#__BVID__12.tabs div#__BVID__12__BV_tab_container_.tab-content.pt-2 div#__BVID__13.tab-pane.active div.timeline.pt-3 ul li.d-flex.pb-3, \
                     div.most-popular.block div#__BVID__12.tabs div#__BVID__12__BV_tab_container_.tab-content.pt-2 div#__BVID__15.tab-pane.active div.ranked-listing div.ranked-item.d-flex.px-3.pb-2.mb-2.align-items-center.timeline, \
+                    div.most-popular.block div#__BVID__9.tabs div#__BVID__9__BV_tab_container_.tab-content.pt-2 div#__BVID__10.tab-pane.active div.timeline.pt-3 ul li.d-flex.pb-3, \
                     div.most-popular.block div#__BVID__8.tabs div#__BVID__8__BV_tab_container_.tab-content.pt-2 div#__BVID__11.tab-pane.active div.ranked-listing div.ranked-item.d-flex.px-3.pb-2.mb-2.align-items-center.timeline, \
                     div.most-popular.block div#__BVID__8.tabs div#__BVID__8__BV_tab_container_.tab-content.pt-2 div#__BVID__9.tab-pane.active div.timeline.pt-3 ul li.d-flex.pb-3, \
                     div.most-popular.block div#__BVID__8.tabs div#__BVID__8__BV_tab_container_.tab-content.pt-2 div#__BVID__9.tab-pane.active div.timeline.pt-3 ul li.d-flex.pb-4, \
@@ -766,7 +768,7 @@ class CovidNewsSpider(scrapy.Spider):
                     div.col-12.col-lg.article-listing div.inner-wrapper.h-100.p-3.d-flex.flex-column.justify-content-between a.d-flex.article.listing.mb-2, \
                     div.col-12.col-lg div.inner-wrapper.h-100.p-3.d-flex.flex-column.justify-content-between a.d-flex.article.listing.mb-2, \
                     \
-                    div.article-listing div.article-teaser a.d-flex.article.listing.mb-3.pb-3 div.content.pl-2.pl-lg-3.col h6.field-title, \
+                    div.article-listing div.article-teaser, \
                     div#trending-block.block.my-4 div.block-content.d-block.position-relative a.d-flex.article.listing.mb-2.pb-2.border-bottom, \
                     \
                     div.block.block-single-listing, \
@@ -892,8 +894,10 @@ class CovidNewsSpider(scrapy.Spider):
             link = article.css('a::attr(href)').get()
 
         elif 'nst.com.my' in response.url:
-            title = article.css('h1.page-title.mb-2 span.d-inline-block.mr-1::text').get()
-            if article.css('div.article-meta > div::text').get():
+            title = article.css('h6.field-title::text').get()
+            date = article.css('div.d-block.article-meta span.created-ago::text').get()
+
+            if date is None and article.css('div.article-meta > div::text').get():
                 date = article.css('div.article-meta > div::text').get().split(' @ ')[0]
 
             link = article.css('a::attr(href)').get()
@@ -1054,9 +1058,12 @@ class CovidNewsSpider(scrapy.Spider):
             "— Jakarta Post",
             "- AFP",
             "— AFP",
+            "- Reuters",
+            "— Reuters",
             "- Bloomberg",
             "— Bloomberg",
             "- Bernama",
+            "– Bernama",
             "— Bernama",
             "- The Nation Thailand/ANN",
             "— The Nation Thailand/ANN",
@@ -1073,6 +1080,7 @@ class CovidNewsSpider(scrapy.Spider):
             "For more news like this",
             "For more information about",
             "For the latest news from",
+            "Watch the full news",
             "RELATED:",
             "RELATED STORIES",
             "RELATED STORY",
