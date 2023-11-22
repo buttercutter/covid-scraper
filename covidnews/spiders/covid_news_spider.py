@@ -977,35 +977,35 @@ class CovidNewsSpider(scrapy.Spider):
                           'timeout': 60  # limit the total time the Lua script can run (optional)
                          },
                     splash_headers={'X-Splash-Render-HTML': 1},  # for non-pure html with javascript
-                    headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,      like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
+                    headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
                 )
 
 
     def remove_photograph_credit(self, text):
-        text = re.sub(r"\(.*?pic.*?\)", "", text)
-        text = re.sub(r"\(.*?Pic.*?\)", "", text)
-        text = re.sub(r"\(Image: .+?\)", "", text)
-        text = re.sub(r"\(Photo.+?\)", "", text)
-        text = re.sub(r".+?Photo from.+?\n", "", text)
-        text = re.sub(r".+?Screenshot from.+?\n", "", text)
-        text = re.sub(r".+?FIle photo.+?\n", "", text)
-        text = re.sub(r"\(AP Photo.+?\)", "", text)
-        text = re.sub(r"\(File photo: .+?\)", "", text)
-        text = re.sub(r"File photo of .+?\n", "", text)
-        text = re.sub(r"FILE-.+?\n", "", text)
-        text = re.sub(r".*?file photo.*?\n", "", text)
-        text = re.sub(r".*?File photo.*?\n", "", text)
-        text = re.sub(r".*?FILE PHOTO.*?\n", "", text)
-        text = re.sub(r".*?PHOTO:.*?\n", "", text)
-        text = re.sub(r".*?PVL PHOTO.*?\n", "", text)
-        text = re.sub(r".*?UAAP PHOTO.*?\n", "", text)
-        text = re.sub(r".*?INQUIRER PHOTO.*?\n", "", text)
-        text = re.sub(r".*?\/INQUIRER\.net.*?\n", "", text)
-        text = re.sub(r".*?PHOTO FROM.*?\n", "", text)
-        text = re.sub(r".*?REUTERS\/.*?\n", "", text)
-        text = re.sub(r".*?CONTRIBUTED PHOTO.*?\n", "", text)
-        text = re.sub(r"FILE PHOTO-.+?", "", text)
-        text = re.sub(r"FILE PHOTO: .+?File Photo", "", text)
+        text = re.sub(r"\(.*?pic.*?\)", "", text, flags=re.DOTALL)
+        text = re.sub(r"\(.*?Pic.*?\)", "", text, flags=re.DOTALL)
+        text = re.sub(r"\(Image: .+?\)", "", text, flags=re.DOTALL)
+        text = re.sub(r"\(Photo.+?\)", "", text, flags=re.DOTALL)
+        text = re.sub(r".+?Photo from.+?\n", "", text, flags=re.DOTALL)
+        text = re.sub(r".+?Screenshot from.+?\n", "", text, flags=re.DOTALL)
+        text = re.sub(r".+?FIle photo.+?\n", "", text, flags=re.DOTALL)
+        text = re.sub(r"\(AP Photo.+?\)", "", text, flags=re.DOTALL)
+        text = re.sub(r"\(File photo: .+?\)", "", text, flags=re.DOTALL)
+        text = re.sub(r"File photo of .+?\n", "", text, flags=re.DOTALL)
+        text = re.sub(r"FILE-.+?\n", "", text, flags=re.DOTALL)
+        text = re.sub(r".*?file photo.*?\n", "", text, flags=re.DOTALL)
+        text = re.sub(r".*?File photo.*?\n", "", text, flags=re.DOTALL)
+        text = re.sub(r".*?FILE PHOTO.*?\n", "", text, flags=re.DOTALL)
+        text = re.sub(r".*?PHOTO:.*?\n", "", text, flags=re.DOTALL)
+        text = re.sub(r".*?PVL PHOTO.*?\n", "", text, flags=re.DOTALL)
+        text = re.sub(r".*?UAAP PHOTO.*?\n", "", text, flags=re.DOTALL)
+        text = re.sub(r".*?INQUIRER PHOTO.*?\n", "", text, flags=re.DOTALL)
+        text = re.sub(r".*?\/INQUIRER\.net.*?\n", "", text, flags=re.DOTALL)
+        text = re.sub(r".*?PHOTO FROM.*?\n", "", text, flags=re.DOTALL)
+        text = re.sub(r".*?REUTERS\/.*?\n", "", text, flags=re.DOTALL)
+        text = re.sub(r".*?CONTRIBUTED PHOTO.*?\n", "", text, flags=re.DOTALL)
+        text = re.sub(r"FILE PHOTO-.+?", "", text, flags=re.DOTALL)
+        text = re.sub(r"FILE PHOTO: .+?File Photo", "", text, flags=re.DOTALL)
         return text
 
 
@@ -1039,6 +1039,7 @@ class CovidNewsSpider(scrapy.Spider):
             "Editor's note",
             "Brian Martin is the managing editor of The Star",
             "this article originally appear",
+            "This story came from",
             "© The New York Times",
             "© 2023 the new york times",
             "© The Financial Times",
@@ -1067,6 +1068,7 @@ class CovidNewsSpider(scrapy.Spider):
             "— Bernama",
             "- The Nation Thailand/ANN",
             "— The Nation Thailand/ANN",
+            "— Vietnam News",
             "[ac]",
             "Click here for more",
             "Click here to read more",
@@ -1382,7 +1384,7 @@ class CovidNewsSpider(scrapy.Spider):
 
             elif 'thestar.com.my' in response.url:
                 #body = response.css('p:not(.caption):not(.date) ::text').getall()
-                body = response.xpath('//p[not(contains(@class, "caption")) and not(contains(@class, "date")) and not(contains(@class, "reactions__desc")) and not(contains(., "Do you have question")) and not(ancestor::div[@class="plan-temp_desc relative"]) and not(.//span[contains(@class, "inline-caption")])]//text()').getall()
+                body = response.xpath('//p[not(contains(@class, "caption")) and not(contains(@class, "date")) and not(contains(@class, "reactions__desc")) and not(contains(., "Do you have question")) and not(ancestor::div[@class="plan-temp_desc relative"]) and not(.//span[contains(@class, "inline-caption")]) and not(.//strong)]//text()').getall()
 
                 if title is None:
                     title = response.css('.headline.story-pg h1::text').get()
@@ -1450,7 +1452,7 @@ class CovidNewsSpider(scrapy.Spider):
                                'timeout': 60  # limit the total time the Lua script can run (optional)
                               },
                          splash_headers={'X-Splash-Render-HTML': 1},  # for non-pure html with javascript
-                         headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,      like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
+                         headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
                     )
 
             # This is an early sign that the current page after url redirection
