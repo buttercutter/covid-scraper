@@ -4,7 +4,9 @@ from scrapy_splash import SplashRequest
 from urllib.parse import urljoin
 import re
 from urllib.parse import urlparse, urlunparse
+
 from dateutil.parser import parse
+from datetime import datetime
 
 import os
 import base64
@@ -63,6 +65,7 @@ inaccessible_subdomain_names = ["olympianbuilder.straitstimes.com", "ststaff.str
                                 "stompcms.straitstimes.com",
                                 "classifieds.thestar.com.my",
                                 "news.mb.com.ph",
+                                "live.inquirer.net",
                                 "inqshop.inquirer.net", "misc.inquirer.net", "nment.inquirer.net",
                                 "inqpop.inquirer.net", "newyorktimes.inquirer.net", "showbizandstyle.inquirer.net",
                                 "vouchers.inquirer.net", "blogs.inquirer.net", "apec.inquirer.net",
@@ -136,10 +139,15 @@ class CovidNewsSpider(scrapy.Spider):
 
     if TEST_SPECIFIC:
         start_urls = [
+                      "https://www.thestar.com.my/opinion/columnists/on-your-side/2020/08/21/a-second-chance-to-keep-hopes-alive",  # javacript rendering is wrong
+                      "https://www.thestar.com.my/opinion/columnists/on-your-side/2020/05/01/share-profits-to-save-the-industry",  # javacript rendering is wrong
+                      "https://www.thestar.com.my/tech/tech-news/2022/06/13/making-a-difference-in-the-digital-age",  # javacript rendering is wrong
+                      "https://www.thestar.com.my/opinion/columnists/search-scholar-series/2022/08/01/advancing-the-esg-agenda-in-china-and-malaysia",  # javacript rendering is wrong
+                      "https://www.thestar.com.my/opinion/columnists/search-scholar-series/2022/03/28/digital-silk-road-potential-benefits-for-malaysias-digital-economy",  # javacript rendering is wrong
+                      "https://www.thestar.com.my/aseanplus/aseanplus-news/2022/10/04/asean-news-headlines-at-9pm-on-tuesday-oct-4-2022",  # javacript rendering is wrong
                       "https://www.thestar.com.my/news/nation/2022/07/15/16th-pkr-national-congress-begins-today",  # need to check whether to ignore all <strong> tags for `ALSO READ:` in the middle of paragraph during `body` extraction since it is also a part of footnote phrase
                       "https://www.thestar.com.my/business/business-news/2023/10/16/fbm-klci-edges-down-at-midday-on-cautious-sentiment",  # empty body list
                       "https://www.thestar.com.my/business/business-news/2023/10/12/limited-impact-on-oil-prices-for-now",  # empty body list
-                      "https://www.thestar.com.my/aseanplus/aseanplus-news/2022/10/04/asean-news-headlines-at-9pm-on-tuesday-oct-4-2022",  # need to manually scrape due to limitation in how I could code the xpath() for 'body' especially for <li> tags
                       "https://www.thestar.com.my/aseanplus/aseanplus-news/2022/10/16/chinas-talent-war-tussle-as-red-tape-us-tensions-shrink-labour-pool-amid-people-decoupling",  # need to manually scrape to recheck 'body' xpath() logic
                       "https://newsinfo.inquirer.net/1580989/no-new-covid-19-cases-recorded-in-pateros-for-fourth-consecutive-day",  # need to manually scrape due to limitation in how I could code the xpath() for 'body' especially for <li> tags
                       "https://www.channelnewsasia.com/singapore/sinovac-covid-19-vaccine-national-vaccination-programme-three-dose-singapore-2263787",  # need to manually scrape due to limitation in how I could code the xpath() for 'body' especially for <li> tags
@@ -155,6 +163,7 @@ class CovidNewsSpider(scrapy.Spider):
                       "https://www.channelnewsasia.com/singapore/mpa-covid-19-10-000-frontline-workers-vaccinations-415726",  # AttributeError: 'list' object has no attribute 'lower'
                       "https://www.channelnewsasia.com/singapore/covid19-how-to-choose-masks-filtration-bfe-surgical-1382776",  # AttributeError: 'list' object has no attribute 'lower'
                       "https://www.channelnewsasia.com/singapore/covid-19-locations-visited-queensway-shopping-masjid-assyakirin-712556",  # part of the sentence text is embedded inside images
+                      "https://www.channelnewsasia.com/singapore/places-visited-by-covid-19-cases-moh-novena-square-fairprice-1851511",  # part of the sentence text is embedded inside images
                       "https://www.straitstimes.com/singapore/changed-forever-by-one-pandemic-is-singapore-ready-for-the-next"  # irrelevant advertisement paragraph text by SPH Media
                      ]
 
@@ -699,7 +708,7 @@ class CovidNewsSpider(scrapy.Spider):
                     body = '\n'.join(body)
                     body = body.strip()
 
-                    body = self.remove_photograph_credit(body)
+                    body = self.remove_media_credit(body)
                     body = self.remove_footnote(body)
 
 
@@ -726,7 +735,7 @@ class CovidNewsSpider(scrapy.Spider):
                     body = '\n'.join(body)
                     body = body.strip()
 
-                    body = self.remove_photograph_credit(body)
+                    body = self.remove_media_credit(body)
                     body = self.remove_footnote(body)
 
 
@@ -981,7 +990,7 @@ class CovidNewsSpider(scrapy.Spider):
                 )
 
 
-    def remove_photograph_credit(self, text):
+    def remove_media_credit(self, text):
         text = re.sub(r"\(.*?pic.*?\)", "", text, flags=re.DOTALL)
         text = re.sub(r"\(.*?Pic.*?\)", "", text, flags=re.DOTALL)
         text = re.sub(r"\(Image: .+?\)", "", text, flags=re.DOTALL)
@@ -1006,6 +1015,9 @@ class CovidNewsSpider(scrapy.Spider):
         text = re.sub(r".*?CONTRIBUTED PHOTO.*?\n", "", text, flags=re.DOTALL)
         text = re.sub(r"FILE PHOTO-.+?", "", text, flags=re.DOTALL)
         text = re.sub(r"FILE PHOTO: .+?File Photo", "", text, flags=re.DOTALL)
+
+        text = re.sub(r"WATCH THE LIVESTREAM HERE:", "", text, flags=re.DOTALL)
+        text = re.sub(r"Watch the full speech:", "", text, flags=re.DOTALL)
         return text
 
 
@@ -1066,6 +1078,7 @@ class CovidNewsSpider(scrapy.Spider):
             "- Bernama",
             "– Bernama",
             "— Bernama",
+            "- Xinhua",
             "- The Nation Thailand/ANN",
             "— The Nation Thailand/ANN",
             "— Vietnam News",
@@ -1089,6 +1102,7 @@ class CovidNewsSpider(scrapy.Spider):
             "RELATED VIDEO",
             "TOPIC:",
             "Reference:",
+            "Source:",
             "catch the olympics games",
             "cna women is a section on cna",
             "Write to us at",
@@ -1226,6 +1240,16 @@ class CovidNewsSpider(scrapy.Spider):
         return text
 
 
+    def is_a_valid_date(self, date_string):
+        try:
+            # Attempt to parse the date string
+            datetime.strptime(date_string, '%B %d, %Y - %I:%M %p')
+            return True
+        except ValueError:
+            # If a ValueError is raised, the date string is not in the expected format
+            return False
+
+
     def get_article_content(self, response):
         # The HTTP 202 status code generally means that the request has been received but not yet acted upon.
         if response.status == 202:
@@ -1349,7 +1373,7 @@ class CovidNewsSpider(scrapy.Spider):
                     # sometimes there could a meaningless <span> with a single text character
                     if response.css('div#m-pd2 > span:nth-child(2)::text').get() and len(response.css('div#m-pd2 > span:nth-child(2)::text').get()) > 1:
                         date = response.css('div#m-pd2 > span:nth-child(2)::text').get()
-                    elif response.css('div#m-pd2 > span:nth-child(3)::text').get() and len(response.css('div#m-pd2 > span:nth-child(3)::text').get()) > 1:
+                    if date and not self.is_a_valid_date(date) and response.css('div#m-pd2 > span:nth-child(3)::text').get() and len(response.css('div#m-pd2 > span:nth-child(3)::text').get()) > 1:
                         date = response.css('div#m-pd2 > span:nth-child(3)::text').get()
 
                     date = date or \
@@ -1384,7 +1408,7 @@ class CovidNewsSpider(scrapy.Spider):
 
             elif 'thestar.com.my' in response.url:
                 #body = response.css('p:not(.caption):not(.date) ::text').getall()
-                body = response.xpath('//p[not(contains(@class, "caption")) and not(contains(@class, "date")) and not(contains(@class, "reactions__desc")) and not(contains(., "Do you have question")) and not(ancestor::div[@class="plan-temp_desc relative"]) and not(.//span[contains(@class, "inline-caption")]) and not(.//strong)]//text()').getall()
+                body = response.xpath('//p[not(contains(@class, "caption")) and not(contains(@class, "date")) and not(contains(@class, "reactions__desc")) and not(contains(@class, "footer-bottom")) and not(contains(., "Do you have question")) and not(ancestor::div[@class="plan-temp_desc relative"]) and not(.//span[contains(@class, "inline-caption")]) and not(.//strong)]//text()').getall()
 
                 if title is None:
                     title = response.css('.headline.story-pg h1::text').get()
@@ -1541,7 +1565,7 @@ class CovidNewsSpider(scrapy.Spider):
             body = '\n'.join(body)
             body = body.strip()
 
-            body = self.remove_photograph_credit(body)
+            body = self.remove_media_credit(body)
             body = self.remove_footnote(body)
 
         print(f"inside write_to_local_data(), article_url = {link} , title = {title}, date = {date}, body = {body}")
