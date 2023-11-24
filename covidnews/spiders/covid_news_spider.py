@@ -123,6 +123,7 @@ incomplete_articles = ["https://www.straitstimes.com/singapore/education/ask-san
                        "https://www.thestar.com.my/aseanplus/aseanplus-news/2021/09/07/",
                        "https://www.thestar.com.my/2003/06/09/all-dried-out",
                        "https://www.thestar.com.my/tech/tech-news/2023/06/13/stock-list.asp",
+                       "https://www.thestar.com.my/news/nation/2023/09/01/malaysian-aviation-group-announces-three-new-routes-to-india",
                        "https://mb.com.ph/rss/articles"
                         ]
 
@@ -139,6 +140,8 @@ class CovidNewsSpider(scrapy.Spider):
 
     if TEST_SPECIFIC:
         start_urls = [
+                      "https://www.thestar.com.my/news/education/2022/05/22/we-give-it-all-we-got",  # javacript rendering is wrong
+                      "https://www.thestar.com.my/tech/tech-news/2022/08/24/anti-work-redditors-say-quiet-quittingreally-means-just-doing-your-job",  # javacript rendering is wrong
                       "https://www.thestar.com.my/opinion/columnists/on-your-side/2020/08/21/a-second-chance-to-keep-hopes-alive",  # javacript rendering is wrong
                       "https://www.thestar.com.my/opinion/columnists/on-your-side/2020/05/01/share-profits-to-save-the-industry",  # javacript rendering is wrong
                       "https://www.thestar.com.my/tech/tech-news/2022/06/13/making-a-difference-in-the-digital-age",  # javacript rendering is wrong
@@ -797,7 +800,7 @@ class CovidNewsSpider(scrapy.Spider):
                     div.row.list-listing div.col-xs-7.col-sm-9 h2, \
                     ul#justInListing.timeline.vTicker li.row div.col-xs-8.col-sm-10.col-md-9.tm-content-wrap div.timeline-content p a, \
                     div.focus section.latest-news div.sub-section-list div.row.list-listing, \
-                    div.featuredDiv div.focus-story div.row div div.col-xs-12.col-sm-4.featuredContent, \
+                    div.featuredDiv div.focus-story div.row div div.col-xs-12.col-sm-4.featuredContent div.content h2, \
                     div.row ul.story-set.col-sm-3.story3 li.row.hidden-visual, \
                     div.story-set-group.story2 div.col-sm-6.in-sec-story div.row div.col-xs-7.left.col-sm-12, \
                     div#section1.story-set-group div.col-sm-3.in-sec-story div.row div.col-xs-7.left.col-sm-12, \
@@ -1079,8 +1082,10 @@ class CovidNewsSpider(scrapy.Spider):
             "– Bernama",
             "— Bernama",
             "- Xinhua",
+            "- The Straits Times/ANN",
             "- The Nation Thailand/ANN",
             "— The Nation Thailand/ANN",
+            "- Philippines Daily Inquirer/ANN",
             "— Vietnam News",
             "[ac]",
             "Click here for more",
@@ -1108,6 +1113,7 @@ class CovidNewsSpider(scrapy.Spider):
             "Write to us at",
             "Subscribe now to",
             ". Subscribe to",
+            "Already a subscriber?",
             "We use cookies",
             "Tags / Keywords:",
             "For more news about the novel coronavirus click here",
@@ -1408,7 +1414,23 @@ class CovidNewsSpider(scrapy.Spider):
 
             elif 'thestar.com.my' in response.url:
                 #body = response.css('p:not(.caption):not(.date) ::text').getall()
-                body = response.xpath('//p[not(contains(@class, "caption")) and not(contains(@class, "date")) and not(contains(@class, "reactions__desc")) and not(contains(@class, "footer-bottom")) and not(contains(., "Do you have question")) and not(ancestor::div[@class="plan-temp_desc relative"]) and not(.//span[contains(@class, "inline-caption")]) and not(.//strong)]//text()').getall()
+                body = response.xpath('//p[not(contains(@class, "caption")) and not(contains(@class, "date")) and not(contains(@class, "reactions__desc")) and not(contains(@class, "footer-bottom")) and not(contains(., "Do you have question")) and not(ancestor::div[@class="plan-temp_desc relative"]) and not(.//span[contains(@class, "inline-caption")]) and not(contains(., "ALSO READ:"))]//text() | //li[not(*)]/text()').getall()
+
+                 # Get the text of the <li> tags without any child tags
+                 li_texts = response.xpath('//li[not(*)]/text()').getall()
+                 #print(f"li_texts = {li_texts}")
+
+                 # Replace <li> texts with comma separated
+                 for i, text in enumerate(body):
+                     for j, t in enumerate(li_texts):
+                         #print(f"text = {text}, t = {t}")
+                         if text in t and j < len(li_texts) - 1:
+                             # replace the matching part of the text with t (which has a comma added)
+                             body[i] = text.replace(t, t + ',')
+
+                         if text in t and j == len(li_texts) - 1:
+                             # replace the matching part of the text with t (which has a fullstop added)
+                             body[i] = text.replace(t, t + '.')
 
                 if title is None:
                     title = response.css('.headline.story-pg h1::text').get()
