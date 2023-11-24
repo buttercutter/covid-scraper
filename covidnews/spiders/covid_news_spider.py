@@ -1416,21 +1416,21 @@ class CovidNewsSpider(scrapy.Spider):
                 #body = response.css('p:not(.caption):not(.date) ::text').getall()
                 body = response.xpath('//p[not(contains(@class, "caption")) and not(contains(@class, "date")) and not(contains(@class, "reactions__desc")) and not(contains(@class, "footer-bottom")) and not(contains(., "Do you have question")) and not(ancestor::div[@class="plan-temp_desc relative"]) and not(.//span[contains(@class, "inline-caption")]) and not(contains(., "ALSO READ:"))]//text() | //li[not(*)]/text()').getall()
 
-                 # Get the text of the <li> tags without any child tags
-                 li_texts = response.xpath('//li[not(*)]/text()').getall()
-                 #print(f"li_texts = {li_texts}")
+                # Get the text of the <li> tags without any child tags
+                li_texts = response.xpath('//li[not(*)]/text()').getall()
+                #print(f"li_texts = {li_texts}")
 
-                 # Replace <li> texts with comma separated
-                 for i, text in enumerate(body):
-                     for j, t in enumerate(li_texts):
-                         #print(f"text = {text}, t = {t}")
-                         if text in t and j < len(li_texts) - 1:
-                             # replace the matching part of the text with t (which has a comma added)
-                             body[i] = text.replace(t, t + ',')
+                # Replace <li> texts with comma separated
+                for i, text in enumerate(body):
+                    for j, t in enumerate(li_texts):
+                        #print(f"text = {text}, t = {t}")
+                        if text in t and j < len(li_texts) - 1:
+                            # replace the matching part of the text with t (which has a comma added)
+                            body[i] = text.replace(t, t + ',')
 
-                         if text in t and j == len(li_texts) - 1:
-                             # replace the matching part of the text with t (which has a fullstop added)
-                             body[i] = text.replace(t, t + '.')
+                        if text in t and j == len(li_texts) - 1:
+                            # replace the matching part of the text with t (which has a fullstop added)
+                            body[i] = text.replace(t, t + '.')
 
                 if title is None:
                     title = response.css('.headline.story-pg h1::text').get()
