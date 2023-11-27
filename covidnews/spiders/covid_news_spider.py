@@ -140,6 +140,9 @@ class CovidNewsSpider(scrapy.Spider):
 
     if TEST_SPECIFIC:
         start_urls = [
+                      "https://www.thestar.com.my/tech/tech-news/2020/10/01/covid-19-controls-turn-asia-into-global-surveillance-hotspot-analysts-say",  # javacript rendering is wrong
+                      "https://www.thestar.com.my/aseanplus/aseanplus-news/2021/10/17/vietnam-approves-national-programme-for-development-of-domestic-vaccines",  # javacript rendering is wrong
+                      "https://www.thestar.com.my/news/nation/2021/12/15/melaka-police-receive-two-reports-on-private-clinic-falsifying-covid-19-results",  # javacript rendering is wrong
                       "https://www.thestar.com.my/news/education/2022/05/22/we-give-it-all-we-got",  # javacript rendering is wrong
                       "https://www.thestar.com.my/tech/tech-news/2022/08/24/anti-work-redditors-say-quiet-quittingreally-means-just-doing-your-job",  # javacript rendering is wrong
                       "https://www.thestar.com.my/opinion/columnists/on-your-side/2020/08/21/a-second-chance-to-keep-hopes-alive",  # javacript rendering is wrong
@@ -155,6 +158,7 @@ class CovidNewsSpider(scrapy.Spider):
                       "https://newsinfo.inquirer.net/1580989/no-new-covid-19-cases-recorded-in-pateros-for-fourth-consecutive-day",  # need to manually scrape due to limitation in how I could code the xpath() for 'body' especially for <li> tags
                       "https://www.channelnewsasia.com/singapore/sinovac-covid-19-vaccine-national-vaccination-programme-three-dose-singapore-2263787",  # need to manually scrape due to limitation in how I could code the xpath() for 'body' especially for <li> tags
                       "https://globalnation.inquirer.net/187527/dfa-records-21-new-covid-19-cases-of-filipinos-abroad-total-now-at-1922",  # need to manually scrape due to limitation in how I could code the xpath() for 'body' especially for <p><b> tags
+                      "https://newsinfo.inquirer.net/1456244/duque-reminds-lgus-to-prioritize-health-workers-elderly-in-covid-19-vax-drive",  # body is empty, need to debug futher
                       "https://newsinfo.inquirer.net/1477559/vigan-city-extends-stricter-curbs-under-mecq-due-to-virus-surge",  # need to manually remove footnote
                       "https://globalnation.inquirer.net/153570/sen-cayetano-confirms-wikipedia-report",  # new_article_url variable is not working yet
                       "https://globalnation.inquirer.net/153864/duterte-looking-better-trump",  # new_article_url variable is not working yet
@@ -1051,7 +1055,10 @@ class CovidNewsSpider(scrapy.Spider):
             "is a lecturer",
             "is a senior lecturer",
             "is President of",
+            "Note:",
             "Editor's note",
+            "Editorial note:",
+            "Correction note:",
             "Brian Martin is the managing editor of The Star",
             "this article originally appear",
             "This story came from",
@@ -1093,6 +1100,8 @@ class CovidNewsSpider(scrapy.Spider):
             "READ:",
             "READ MORE:",
             "Read next",
+            "READ MORE HERE",
+            "Read more from",
             "Read more stories",
             "Read more Global Nation stories",
             "More from South China Morning Post:",
@@ -1428,9 +1437,9 @@ class CovidNewsSpider(scrapy.Spider):
                             # replace the matching part of the text with t (which has a comma added)
                             body[i] = text.replace(t, t + ',')
 
-                        if text in t and j == len(li_texts) - 1:
+                        #if text in t and j == len(li_texts) - 1:
                             # replace the matching part of the text with t (which has a fullstop added)
-                            body[i] = text.replace(t, t + '.')
+                            #body[i] = text.replace(t, t + '.')
 
                 if title is None:
                     title = response.css('.headline.story-pg h1::text').get()
