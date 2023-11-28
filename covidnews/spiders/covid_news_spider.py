@@ -140,6 +140,12 @@ class CovidNewsSpider(scrapy.Spider):
 
     if TEST_SPECIFIC:
         start_urls = [
+                      "https://www.thestar.com.my/aseanplus/aseanplus-news/2020/08/15/singapore-looking-at-reciprocal-green-lanes-for-tourists-amid-covid-19-outbreak",  # javacript rendering is wrong
+                      "https://www.thestar.com.my/aseanplus/aseanplus-news/2020/10/21/indonesia-japan-to-start-reciprocal-business-travels-amid-pandemic",  # javacript rendering is wrong
+                      "https://www.thestar.com.my/news/nation/2020/10/13/covid-19-volunteers-helping-to-install-temporary-ward-at-beluran-hospital",  # javacript rendering is wrong
+                      "https://www.thestar.com.my/aseanplus/aseanplus-news/2021/07/22/manila-residents-brave-flood-to-get-vaccinated-against-covid-19",  # javacript rendering is wrong
+                      "https://www.thestar.com.my/news/nation/2021/04/21/schools-ordered-closed-in-petaling-district-to-reopen-on-thursday-april-22",  # javacript rendering is wrong
+                      "https://www.thestar.com.my/news/regional/2020/05/17/south-east-asia---caught-in-the-middle-of-a-new-us-china-cold-war",  # javacript rendering is wrong
                       "https://www.thestar.com.my/tech/tech-news/2020/10/01/covid-19-controls-turn-asia-into-global-surveillance-hotspot-analysts-say",  # javacript rendering is wrong
                       "https://www.thestar.com.my/aseanplus/aseanplus-news/2021/10/17/vietnam-approves-national-programme-for-development-of-domestic-vaccines",  # javacript rendering is wrong
                       "https://www.thestar.com.my/news/nation/2021/12/15/melaka-police-receive-two-reports-on-private-clinic-falsifying-covid-19-results",  # javacript rendering is wrong
@@ -155,6 +161,7 @@ class CovidNewsSpider(scrapy.Spider):
                       "https://www.thestar.com.my/business/business-news/2023/10/16/fbm-klci-edges-down-at-midday-on-cautious-sentiment",  # empty body list
                       "https://www.thestar.com.my/business/business-news/2023/10/12/limited-impact-on-oil-prices-for-now",  # empty body list
                       "https://www.thestar.com.my/aseanplus/aseanplus-news/2022/10/16/chinas-talent-war-tussle-as-red-tape-us-tensions-shrink-labour-pool-amid-people-decoupling",  # need to manually scrape to recheck 'body' xpath() logic
+                      "https://www.straitstimes.com/singapore/seniors-in-spore-find-it-hard-to-stay-home-in-order-to-stay-safe-amid-covid-19",  # need to manually scrape due to multiple articles and multiple footnotes
                       "https://newsinfo.inquirer.net/1580989/no-new-covid-19-cases-recorded-in-pateros-for-fourth-consecutive-day",  # need to manually scrape due to limitation in how I could code the xpath() for 'body' especially for <li> tags
                       "https://www.channelnewsasia.com/singapore/sinovac-covid-19-vaccine-national-vaccination-programme-three-dose-singapore-2263787",  # need to manually scrape due to limitation in how I could code the xpath() for 'body' especially for <li> tags
                       "https://globalnation.inquirer.net/187527/dfa-records-21-new-covid-19-cases-of-filipinos-abroad-total-now-at-1922",  # need to manually scrape due to limitation in how I could code the xpath() for 'body' especially for <p><b> tags
@@ -1100,6 +1107,7 @@ class CovidNewsSpider(scrapy.Spider):
             "READ:",
             "READ MORE:",
             "Read next",
+            "READ NEXT:",
             "READ MORE HERE",
             "Read more from",
             "Read more stories",

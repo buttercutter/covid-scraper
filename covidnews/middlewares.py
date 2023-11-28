@@ -10,7 +10,14 @@ import logging
 
 # For javascript handling
 from selenium import webdriver
+from selenium.webdriver.chromium.options import ChromiumOptions as Chrome_Options
+from selenium.webdriver.chrome.service import Service as ChromeService
+from selenium.webdriver.firefox.options import Options as Firefox_Options
+from selenium.webdriver.firefox.service import Service as FirefoxService
+from webdriver_manager.chrome import ChromeDriverManager
+from webdriver_manager.firefox import GeckoDriverManager
 import asyncio
+from twisted.internet import defer
 from scrapy.utils.defer import mustbe_deferred
 from scrapy.utils.python import to_bytes
 from playwright.async_api import async_playwright
@@ -56,7 +63,11 @@ class SeleniumMiddleware:
     def __init__(self):
         selenium_logger = logging.getLogger('selenium.webdriver.remote.remote_connection')
         selenium_logger.setLevel(logging.ERROR)
-        self.driver = webdriver.Firefox()
+        options = Firefox_Options()
+        #options = Chrome_Options()
+        options.headless = True
+        self.driver = webdriver.Firefox(service=FirefoxService(GeckoDriverManager().install()), options=options)
+        #self.driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
 
     def __del__(self):
         self.driver.quit()
@@ -65,8 +76,6 @@ class SeleniumMiddleware:
         self.driver.get(request.url)
         return HtmlResponse(self.driver.current_url, body=self.driver.page_source, encoding='utf-8', request=request)
 
-
-from twisted.internet import defer
 
 class PlaywrightMiddleware:
     def __init__(self):
