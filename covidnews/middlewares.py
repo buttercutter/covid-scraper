@@ -6,6 +6,7 @@
 from scrapy import signals
 from scrapy.http import HtmlResponse
 
+import time
 import logging
 
 # For javascript handling
@@ -66,14 +67,30 @@ class SeleniumMiddleware:
         options = Firefox_Options()
         #options = Chrome_Options()
         options.headless = True
+        options.add_argument('--headless')
         self.driver = webdriver.Firefox(service=FirefoxService(GeckoDriverManager().install()), options=options)
         #self.driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
 
     def __del__(self):
         self.driver.quit()
 
+    def wait_for_ajax(self):
+        wait_start = time.time()
+        while time.time() - wait_start < 15:  # wait for 15 seconds
+            try:
+                is_ajax_finished = self.driver.execute_script("return jQuery.active == 0")
+                if is_ajax_finished:
+                    break
+            except Exception as e:
+                pass
+            time.sleep(0.5)
+        else:
+            print("Waited 15 seconds for AJAX, moving on regardless if it's finished.")
+            #time.sleep(10)  # Wait for another 10 seconds, for debugging purpose
+
     def process_request(self, request, spider):
         self.driver.get(request.url)
+        self.wait_for_ajax()
         return HtmlResponse(self.driver.current_url, body=self.driver.page_source, encoding='utf-8', request=request)
 
 

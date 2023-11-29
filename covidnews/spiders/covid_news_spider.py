@@ -918,7 +918,9 @@ class CovidNewsSpider(scrapy.Spider):
 
         elif 'nst.com.my' in response.url:
             title = article.css('h6.field-title::text').get()
-            date = article.css('div.d-block.article-meta span.created-ago::text').get()
+
+            if article.css('div.d-block.article-meta span.created-ago::text').get():
+                date = article.css('div.d-block.article-meta span.created-ago::text').get().split(' @ ')[0]
 
             if date is None and article.css('div.article-meta > div::text').get():
                 date = article.css('div.article-meta > div::text').get().split(' @ ')[0]
@@ -1066,7 +1068,9 @@ class CovidNewsSpider(scrapy.Spider):
             "Editor's note",
             "Editorial note:",
             "Correction note:",
+            "Clarification note:",
             "Brian Martin is the managing editor of The Star",
+            "The article was edited",
             "this article originally appear",
             "This story came from",
             "© The New York Times",
