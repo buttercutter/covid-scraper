@@ -38,6 +38,10 @@ USE_SPLASH = 0
 USE_SELENIUM = 0
 USE_PLAYWRIGHT = 0
 
+# The status code 429 stands for "Too Many Requests".
+# It is an HTTP response status code indicating that the user has sent too many requests in a given amount of time ("rate limiting").
+USE_RATE_LIMIT = 0
+
 # Whether to skip cdx search
 SKIP_CDX = True
 
@@ -53,7 +57,7 @@ elif search_country == 'philippines':
     allowed_domain_names = ["mb.com.ph", "inquirer.net"]
 
 elif search_country == 'malaysia':
-    allowed_domain_names = ["nst.com.my", "thestar.com.my"]
+    allowed_domain_names = ["nst.com.my", "thestar.com.my", "bernama.com/en/", "malaysianow.com", "malaymail.com", "freemalaysiatoday.com", "malaysiakini.com"]
 
 
 # not accessible due to DNS lookup error or the webpage had since migrated to other subdomains
@@ -106,6 +110,7 @@ irrelevant_subdomain_names = ["channelnewsasia.com/watch/", "cnaluxury.channelne
                               "thestar.com.my/news/world", "thestar.com.my/world/world",
                               "thestar.com.my/tag/forex", "thestar.com.my/tag/banking", "thestar.com.my/tag/cryptocurrency",
                               "thestar.com.my/tag/energy", "thestar.com.my/tag/smartphones",
+                              "bernama.com/en/videos/", "bernama.com/tv/", "bernama.com/radio/", "images.bernama.com",
                               "entertainment.inquirer.net", "business.inquirer.net", "opinion.inquirer.net",
                               "sports.inquirer.net", "technology.inquirer.net", "usa.inquirer.net",
                               "pop.inquirer.net", "inquirer.net/inqpop", "lifestyle.inquirer.net",
@@ -124,6 +129,8 @@ incomplete_articles = ["https://www.straitstimes.com/singapore/education/ask-san
                        "https://www.thestar.com.my/2003/06/09/all-dried-out",
                        "https://www.thestar.com.my/tech/tech-news/2023/06/13/stock-list.asp",
                        "https://www.thestar.com.my/news/nation/2023/09/01/malaysian-aviation-group-announces-three-new-routes-to-india",
+                       "https://www.thestar.com.my/news/nation/2022/04/26/toll-free-travel-and-discounts-to-make-a-merrier-raya",
+                       "https://www.thestar.com.my/2004/10/03/umno-in-her-blood",
                        "https://mb.com.ph/rss/articles"
                         ]
 
@@ -161,6 +168,8 @@ class CovidNewsSpider(scrapy.Spider):
                       "https://www.thestar.com.my/business/business-news/2023/10/16/fbm-klci-edges-down-at-midday-on-cautious-sentiment",  # empty body list
                       "https://www.thestar.com.my/business/business-news/2023/10/12/limited-impact-on-oil-prices-for-now",  # empty body list
                       "https://www.thestar.com.my/aseanplus/aseanplus-news/2022/10/16/chinas-talent-war-tussle-as-red-tape-us-tensions-shrink-labour-pool-amid-people-decoupling",  # need to manually scrape to recheck 'body' xpath() logic
+                      "https://www.straitstimes.com/singapore/consumer/spores-nightlife-industry-remains-shut-out-despite-easing-of-curbs",  # need to manually scrape due to multiple articles and multiple footnotes
+                      "https://www.straitstimes.com/singapore/community/domestic-workers-long-for-visits-home-amid-covid-19-restrictions",  # need to manually scrape due to multiple articles and multiple footnotes
                       "https://www.straitstimes.com/singapore/seniors-in-spore-find-it-hard-to-stay-home-in-order-to-stay-safe-amid-covid-19",  # need to manually scrape due to multiple articles and multiple footnotes
                       "https://newsinfo.inquirer.net/1580989/no-new-covid-19-cases-recorded-in-pateros-for-fourth-consecutive-day",  # need to manually scrape due to limitation in how I could code the xpath() for 'body' especially for <li> tags
                       "https://www.channelnewsasia.com/singapore/sinovac-covid-19-vaccine-national-vaccination-programme-three-dose-singapore-2263787",  # need to manually scrape due to limitation in how I could code the xpath() for 'body' especially for <li> tags
@@ -178,6 +187,7 @@ class CovidNewsSpider(scrapy.Spider):
                       "https://www.channelnewsasia.com/singapore/covid19-how-to-choose-masks-filtration-bfe-surgical-1382776",  # AttributeError: 'list' object has no attribute 'lower'
                       "https://www.channelnewsasia.com/singapore/covid-19-locations-visited-queensway-shopping-masjid-assyakirin-712556",  # part of the sentence text is embedded inside images
                       "https://www.channelnewsasia.com/singapore/places-visited-by-covid-19-cases-moh-novena-square-fairprice-1851511",  # part of the sentence text is embedded inside images
+                      "https://www.straitstimes.com/singapore/health/high-vaccination-rate-risk-of-hospitals-being-swamped-cited-as-reasons-for-and",  # part of the sentence text is embedded inside images
                       "https://www.straitstimes.com/singapore/changed-forever-by-one-pandemic-is-singapore-ready-for-the-next"  # irrelevant advertisement paragraph text by SPH Media
                      ]
 
@@ -202,7 +212,12 @@ class CovidNewsSpider(scrapy.Spider):
 
         elif search_country == 'malaysia':
             start_urls = [
-                'https://www.nst.com.my/',
+                #'https://www.nst.com.my/',  # does not work with Selenium library
+                #'https://www.bernama.com/en/',  # only contains article for the most recent 2 months
+                'https://www.malaysianow.com/',
+                'https://www.malaymail.com/',
+                'https://www.freemalaysiatoday.com/',
+                'https://www.malaysiakini.com/',
                 'https://www.thestar.com.my/'
             ]
 
@@ -256,6 +271,10 @@ class CovidNewsSpider(scrapy.Spider):
             'SPIDER_MIDDLEWARES': {
             },
         }
+
+    if USE_RATE_LIMIT:
+        custom_settings['DOWNLOAD_DELAY'] = 0.5
+
 
     if TEST_SPECIFIC:
 
@@ -486,6 +505,11 @@ class CovidNewsSpider(scrapy.Spider):
 
         # Concatenates the domain and the suffix (TLD)
         domain_name = f"{extracted.domain}.{extracted.suffix}"
+
+        if search_country == 'malaysia' and domain_name == 'bernama.com':
+            # for specific use case only
+            domain_name = domain_name + "/en/"
+
         return domain_name
 
 
@@ -535,6 +559,12 @@ class CovidNewsSpider(scrapy.Spider):
             more_links = response.css('a::attr(href)').getall()
 
         elif 'thestar.com.my' in response.url:
+            more_links = response.css('a::attr(href)').getall()
+
+        elif 'bernama.com/en/' in response.url:
+            more_links = response.css('a::attr(href)').getall()
+
+        elif 'malaysianow.com' in response.url:
             more_links = response.css('a::attr(href)').getall()
 
         elif 'archive.org' in response.url:
@@ -825,6 +855,41 @@ class CovidNewsSpider(scrapy.Spider):
                     div#story-recom-list.desc-wrap div.desc, div.row.panel-content'
             )
 
+        elif 'bernama.com/en/' in response.url:
+            print("parse_articles() for bernama.com/en/")
+            return response.css(
+                'div#topstory.carousel.slide.mt-2 div.carousel-inner div.carousel-item div.carousel-caption h1.h3 a, \
+                div#skroll div.ji-timeline div.ji-container.ji-right div.ji-content h6, \
+                div#main.container-fluid.px-0 div.row div.col-lg-6 div#spcl2news.row div.col-12.col-sm-12.col-md-6.col-lg-6.mb-3.mb-md-0.mb-lg-0 div.row div.col-7.col-md-12.col-lg-12 h6 a, \
+                div#main.container-fluid.px-0 div.row div.col-lg-12 div#spcl3news.row div.col-12.col-sm-12.col-md-3.col-lg-3.mb-3.mb-md-0.mb-lg-0 div.row div.col-7.col-md-12.col-lg-12 h6 a, \
+                div#main.container-fluid.px-0 div.row div.col-sm-12.col-md-12.col-lg-12 div.row div.col-12 div#latestnews.owl-carousel.owl-theme.owl-loaded.owl-drag div.owl-stage-outer div.owl-stage div.owl-item.active div h6 a, \
+                div#main.container-fluid.px-0 div#twonewsonly.row div.col-lg-6 div#generalnews.row div.col-12.col-sm-12.col-md-6.col-lg-6.mb-3.mb-md-0.mb-lg-0 div.row div.col-7.col-md-12.col-lg-12 h6 a, \
+                div#main.container-fluid.px-0 div#twonewsonly.row div.col-lg-6 div#worldnews.row div.col-12.col-sm-12.col-md-6.col-lg-6.mb-3.mb-md-0.mb-lg-0 div.row div.col-7.col-md-12.col-lg-12 h6 a, \
+                div#main.container-fluid.px-0 div#twonewsonly.row div.col-lg-6 div#businessnews.row div.col-12.col-sm-12.col-md-6.col-lg-6.mb-3.mb-md-0.mb-lg-0 div.row div.col-7.col-md-12.col-lg-12 h6 a, \
+                div#main.container-fluid.px-0 div#twonewsonly.row div.col-lg-6 div#politicsnews.row div.col-12.col-sm-12.col-md-6.col-lg-6.mb-3.mb-md-0.mb-lg-0 div.row div.col-7.col-md-12.col-lg-12 h6 a, \
+                div#main.container-fluid.px-0 div#twonewsonly.row div.col-lg-6 div#sportnews.row div.col-12.col-sm-12.col-md-6.col-lg-6.mb-3.mb-md-0.mb-lg-0 div.row div.col-7.col-md-12.col-lg-12 h6 a, \
+                div#main.container-fluid.px-0 div#twonewsonly.row div.col-lg-6 div#featuresnews.row div.col-12.col-sm-12.col-md-6.col-lg-6.mb-3.mb-md-0.mb-lg-0 div.row div.col-7.col-md-12.col-lg-12 h6 a, \
+                div#main.container-fluid.px-0 div#twonewsonly.row div.col-lg-6 div#thoughtsnews.row div.col-12.col-sm-12.col-md-6.col-lg-6.mb-3.mb-md-0.mb-lg-0 div.row div.col-7.col-md-12.col-lg-12 h6 a, \
+                div#body-row.row.oku_font div.col.pt-3 div.container-fluid.px-0 div.row div.col-sm-12.col-md-12.col-lg-12 div.row div.col-sm-12.col-md-4.col-lg-4.mt-3.mt-md-0.mt-lg-0 h1.h3 a, \
+                div#body-row.row.oku_font div.col.pt-3 div.container-fluid.px-0 div.row div.col-sm-12.col-md-12.col-lg-12 div.row div.col-12.col-sm-12.col-md-3.col-lg-3.mb-3.mb-md-0.mb-lg-0 div.row div.col-7.col-md-12.col-lg-12.mb-3 h6 a, \
+                div#body-row.row.oku_font div.col.pt-3 div.container-fluid.px-0 div.row div.col-12.col-sm-12.col-md-8.col-lg-8 div.row div.p-2.pl-3 div.row div.col-7.col-sm-7.col-md-8.col-lg-8 h6 a'
+            )
+
+        elif 'malaysianow.com' in response.url:
+            print("parse_articles() for malaysianow.com")
+            return response.css(
+                'div#__next main div.bg-white div.mx-auto.max-w-7xl.px-4.pt-10.pb-8.sm div.space-y-8.lg.lg.lg.lg div.lg a, \
+                div#__next main div.bg-white div.mx-auto.max-w-7xl.px-4.pt-10.pb-8.sm div.space-y-8.lg.lg.lg.lg div.lg div.space-y-8.sm.sm.sm.sm.sm.lg.lg div.group a, \
+                div#__next main div.bg-white div.mx-auto.max-w-7xl.py-8.px-4.sm div.border-t-2.border-gray-100.py-8 div.space-y-8 div ul.space-y-8.sm.sm.sm.sm.sm.lg.lg li a, \
+                div#__next main div.bg-white div.mx-auto.max-w-7xl.py-8.px-4.sm div.items-stretch.space-y-8.lg.lg.lg.lg div.w-full.space-y-8.lg.lg.lg.lg div.space-y-8.sm.sm.sm.sm.sm.lg.lg div.rounded-md.border-2.border-gray-100.p-6 div.space-y-4 div.divide-y.divide-gray-200 div.group.py-4 a, \
+                div#__next main div.bg-white div.mx-auto.max-w-7xl.py-8.px-4.sm div.items-stretch.space-y-8.lg.lg.lg.lg div.flex-1 div.space-y-12.sm.sm.sm.sm.lg.lg div.sm a, \
+                div#__next main div.bg-white div.mx-auto.max-w-7xl.py-8.px-4.sm div.space-y-8.lg.lg.lg.lg div.lg a, \
+                div#__next main div.bg-white div.mx-auto.max-w-7xl.py-8.px-4.sm div.space-y-8.lg.lg.lg.lg div.lg div.space-y-8.sm.sm.sm.sm.sm.lg.lg div.group a, \
+                div#__next main div.bg-white div.mx-auto.max-w-7xl.px-4.pt-8.pb-10.sm div.mx-auto.grid.gap-5.sm.lg.lg div.group.flex.flex-col.overflow-hidden.rounded-md.border-2.border-gray-100 div.flex.flex-1.flex-col.justify-between.bg-white.p-6 div.flex-1 a, \
+                div#__next main div.bg-white div.mx-auto.max-w-7xl.py-10.px-4.sm div.items-stretch.space-y-6.lg.lg.lg.lg div.flex-1 div.mx-auto.grid.gap-5.sm.lg.lg div.group.flex.flex-col.overflow-hidden.rounded-md.border-2.border-gray-100 div.flex.flex-1.flex-col.justify-between.bg-white.p-6 div.flex-1 a, \
+                div#__next main div.bg-white div.mx-auto.max-w-7xl.py-10.px-4.sm div.items-stretch.space-y-6.lg.lg.lg.lg div.space-y-8.lg.lg.lg.lg div.rounded-md.border-2.border-gray-100.p-6 div.space-y-4 div.divide-y.divide-gray-200 div.group.py-4 a'
+            )
+
         elif 'archive.org' in response.url:
             if 'https://archive.org/details/' in response.url:
                 # Extract article (only the FULL_TEXT download page) from the summary page
@@ -937,6 +1002,25 @@ class CovidNewsSpider(scrapy.Spider):
             if date is None and article.css('label.timestamp ::text').get():
                 date = article.css('label.timestamp ::text').get().split(' | ')[0]
 
+            link = article.css('a::attr(href)').get()
+
+        elif 'bernama.com/en/' in response.url:
+            title = article.css('a ::text').get()
+            link = article.css('a::attr(href)').get()
+
+        elif 'malaysianow.com' in response.url:
+            title = article.css('div#__next main div.bg-white div.mx-auto.max-w-7xl.px-4.pt-10.pb-8.sm div.space-y-8.lg.lg.lg.lg div.lg a div.group.space-y-4 div.space-y-1 h3 ::text').get() or \
+                    article.css('div#__next main div.bg-white div.mx-auto.max-w-7xl.px-4.pt-10.pb-8.sm div.space-y-8.lg.lg.lg.lg div.lg div.space-y-8.sm.sm.sm.sm.sm.lg.lg div.group a div.space-y-3 div.space-y-1 h3 ::text').get() or \
+                    article.css('div#__next main div.bg-white div.mx-auto.max-w-7xl.py-8.px-4.sm div.border-t-2.border-gray-100.py-8 div.space-y-8 div ul.space-y-8.sm.sm.sm.sm.sm.lg.lg li a.group div.group.grid.grid-cols-3.items-start.gap-6.space-y-0 div.col-span-2.flex.h-full.flex-col.justify-center.space-y-1.align-middle h3 ::text').get() or \
+                    article.css('div#__next main div.bg-white div.mx-auto.max-w-7xl.py-8.px-4.sm div.items-stretch.space-y-8.lg.lg.lg.lg div.w-full.space-y-8.lg.lg.lg.lg:w-[300px] div.space-y-8.sm.sm.sm.sm.sm.lg.lg div.rounded-md.border-2.border-gray-100.p-6 div.space-y-4 div.divide-y.divide-gray-200 div.group.py-4 a div.space-y-3 div.space-y-1 h3 ::text').get() or \
+                    article.css('div#__next main div.bg-white div.mx-auto.max-w-7xl.py-8.px-4.sm div.items-stretch.space-y-8.lg.lg.lg.lg div.flex-1 div.space-y-12.sm.sm.sm.sm.lg.lg div.sm a div.group.space-y-4.sm.sm:grid-cols-5.sm:items-start.sm:gap-6.sm div.sm:col-span-3 div.space-y-4 div.space-y-1 h3 ::text').get() or \
+                    article.css('div#__next main div.bg-white div.mx-auto.max-w-7xl.py-8.px-4.sm div.space-y-8.lg.lg.lg.lg div.lg a div.group.space-y-4 div.space-y-1 h3 ::text').get() or \
+                    article.css('div#__next main div.bg-white div.mx-auto.max-w-7xl.py-8.px-4.sm div.space-y-8.lg.lg.lg.lg div.lg div.space-y-8.sm.sm.sm.sm.sm.lg.lg div.group a div.space-y-3 div.space-y-1 h3 ::text').get() or \
+                    article.css('div#__next main div.bg-white div.mx-auto.max-w-7xl.px-4.pt-8.pb-10.sm div.mx-auto.grid.gap-5.sm.lg.lg div.group.flex.flex-col.overflow-hidden.rounded-md.border-2.border-gray-100 div.flex.flex-1.flex-col.justify-between.bg-white.p-6 div.flex-1 a.mt-2.block p.font-georgia.text-xl.leading-6.text-gray-900.transition.duration-200.group-hover:text-brand-red-900 ::text').get() or \
+                    article.css('div#__next main div.bg-white div.mx-auto.max-w-7xl.py-10.px-4.sm div.items-stretch.space-y-6.lg.lg.lg.lg div.flex-1 div.mx-auto.grid.gap-5.sm.lg.lg div.group.flex.flex-col.overflow-hidden.rounded-md.border-2.border-gray-100 div.flex.flex-1.flex-col.justify-between.bg-white.p-6 div.flex-1 a.mt-2.block div.space-y-1 p ::text').get() or \
+                    article.css('div#__next main div.bg-white div.mx-auto.max-w-7xl.py-10.px-4.sm div.items-stretch.space-y-6.lg.lg.lg.lg div.space-y-8.lg.lg.lg.lg:w-[300px] div.rounded-md.border-2.border-gray-100.p-6 div.space-y-4 div.divide-y.divide-gray-200 div.group.py-4 a div.space-y-3 div.space-y-1 h3 ::text').get()
+
+            date = article.css('time ::text').get()
             link = article.css('a::attr(href)').get()
 
         elif 'archive.org' in response.url:
@@ -1071,6 +1155,8 @@ class CovidNewsSpider(scrapy.Spider):
             "Clarification note:",
             "Brian Martin is the managing editor of The Star",
             "The article was edited",
+            "The story has been updated",
+            "This story has been updated",
             "This article has been updated",
             "this article originally appear",
             "This story came from",
@@ -1084,6 +1170,7 @@ class CovidNewsSpider(scrapy.Spider):
             "(Reporting by",
             "Additional reporting by",
             "Edited by",
+            "Produced by:",
             "Brought to you by",
             "—With a report from",
             "—WITH REPORTS FROM",
@@ -1103,6 +1190,7 @@ class CovidNewsSpider(scrapy.Spider):
             "- Bernama",
             "– Bernama",
             "— Bernama",
+            "-- Bernama",
             "- Xinhua",
             "- The Straits Times/ANN",
             "- The Nation Thailand/ANN",
@@ -1468,6 +1556,23 @@ class CovidNewsSpider(scrapy.Spider):
 
                 if date is None:
                     date = response.css('p.date::text').get()
+
+            elif 'bernama.com/en/' in response.url:
+                body = response.css('p ::text').getall()
+
+                if title is None:
+                    title = response.css('div#body-row.row.oku_font div.col.pt-3 div.container-fluid.px-0 div.row div.col-12.col-sm-12.col-md-12.col-lg-8 h1.h2::text').get()
+
+                date = response.css('div#body-row.row.oku_font div.col.pt-3 div.container-fluid.px-0 div.row div.col-12.col-sm-12.col-md-12.col-lg-8 div.row div.col-6.mt-3 div.text-right::text').get()
+
+            elif 'malaysianow.com' in response.url:
+                body = response.css('p ::text').getall()
+
+                if title is None:
+                    title = response.css('h1 ::text').get()
+
+                if date is None:
+                    date = response.css('time ::text').get()
 
             elif 'archive.org' in response.url:
                 body = response.css('div.article p::text').getall() or \
