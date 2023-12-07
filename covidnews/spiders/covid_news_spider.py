@@ -37,6 +37,7 @@ SEARCH_ENTIRE_WEBSITE = 1
 USE_SPLASH = 0
 USE_SELENIUM = 0
 USE_PLAYWRIGHT = 0
+USE_PUPPETEER = 0
 
 # The status code 429 stands for "Too Many Requests".
 # It is an HTTP response status code indicating that the user has sent too many requests in a given amount of time ("rate limiting").
@@ -147,15 +148,8 @@ class CovidNewsSpider(scrapy.Spider):
 
     if TEST_SPECIFIC:
         start_urls = [
-                      "https://www.thestar.com.my/aseanplus/aseanplus-news/2020/08/15/singapore-looking-at-reciprocal-green-lanes-for-tourists-amid-covid-19-outbreak",  # javacript rendering is wrong
-                      "https://www.thestar.com.my/aseanplus/aseanplus-news/2020/10/21/indonesia-japan-to-start-reciprocal-business-travels-amid-pandemic",  # javacript rendering is wrong
-                      "https://www.thestar.com.my/news/nation/2020/10/13/covid-19-volunteers-helping-to-install-temporary-ward-at-beluran-hospital",  # javacript rendering is wrong
-                      "https://www.thestar.com.my/aseanplus/aseanplus-news/2021/07/22/manila-residents-brave-flood-to-get-vaccinated-against-covid-19",  # javacript rendering is wrong
-                      "https://www.thestar.com.my/news/nation/2021/04/21/schools-ordered-closed-in-petaling-district-to-reopen-on-thursday-april-22",  # javacript rendering is wrong
                       "https://www.thestar.com.my/news/regional/2020/05/17/south-east-asia---caught-in-the-middle-of-a-new-us-china-cold-war",  # javacript rendering is wrong
                       "https://www.thestar.com.my/tech/tech-news/2020/10/01/covid-19-controls-turn-asia-into-global-surveillance-hotspot-analysts-say",  # javacript rendering is wrong
-                      "https://www.thestar.com.my/aseanplus/aseanplus-news/2021/10/17/vietnam-approves-national-programme-for-development-of-domestic-vaccines",  # javacript rendering is wrong
-                      "https://www.thestar.com.my/news/nation/2021/12/15/melaka-police-receive-two-reports-on-private-clinic-falsifying-covid-19-results",  # javacript rendering is wrong
                       "https://www.thestar.com.my/news/education/2022/05/22/we-give-it-all-we-got",  # javacript rendering is wrong
                       "https://www.thestar.com.my/tech/tech-news/2022/08/24/anti-work-redditors-say-quiet-quittingreally-means-just-doing-your-job",  # javacript rendering is wrong
                       "https://www.thestar.com.my/opinion/columnists/on-your-side/2020/08/21/a-second-chance-to-keep-hopes-alive",  # javacript rendering is wrong
@@ -165,9 +159,6 @@ class CovidNewsSpider(scrapy.Spider):
                       "https://www.thestar.com.my/opinion/columnists/search-scholar-series/2022/03/28/digital-silk-road-potential-benefits-for-malaysias-digital-economy",  # javacript rendering is wrong
                       "https://www.thestar.com.my/aseanplus/aseanplus-news/2022/10/04/asean-news-headlines-at-9pm-on-tuesday-oct-4-2022",  # javacript rendering is wrong
                       "https://www.thestar.com.my/news/nation/2022/07/15/16th-pkr-national-congress-begins-today",  # need to check whether to ignore all <strong> tags for `ALSO READ:` in the middle of paragraph during `body` extraction since it is also a part of footnote phrase
-                      "https://www.thestar.com.my/business/business-news/2023/10/16/fbm-klci-edges-down-at-midday-on-cautious-sentiment",  # empty body list
-                      "https://www.thestar.com.my/business/business-news/2023/10/12/limited-impact-on-oil-prices-for-now",  # empty body list
-                      "https://www.thestar.com.my/aseanplus/aseanplus-news/2022/10/16/chinas-talent-war-tussle-as-red-tape-us-tensions-shrink-labour-pool-amid-people-decoupling",  # need to manually scrape to recheck 'body' xpath() logic
                       "https://www.straitstimes.com/singapore/consumer/spores-nightlife-industry-remains-shut-out-despite-easing-of-curbs",  # need to manually scrape due to multiple articles and multiple footnotes
                       "https://www.straitstimes.com/singapore/community/domestic-workers-long-for-visits-home-amid-covid-19-restrictions",  # need to manually scrape due to multiple articles and multiple footnotes
                       "https://www.straitstimes.com/singapore/seniors-in-spore-find-it-hard-to-stay-home-in-order-to-stay-safe-amid-covid-19",  # need to manually scrape due to multiple articles and multiple footnotes
@@ -238,6 +229,7 @@ class CovidNewsSpider(scrapy.Spider):
 
     elif USE_PLAYWRIGHT:
         os.system('playwright install')
+
         custom_settings = {
             'DOWNLOADER_MIDDLEWARES': {
                 'covidnews.middlewares.GzipRetryMiddleware': 543,
@@ -248,6 +240,21 @@ class CovidNewsSpider(scrapy.Spider):
             'SPIDER_MIDDLEWARES': {
             },
         }
+
+    elif USE_PUPPETEER:
+        from scrapypuppeteer import PuppeteerRequest
+
+        custom_settings = {
+            'DOWNLOADER_MIDDLEWARES': {
+                'covidnews.middlewares.GzipRetryMiddleware': 543,
+                'covidnews.middlewares.ForgivingHttpCompressionMiddleware': 810,
+                'scrapypuppeteer.middleware.PuppeteerServiceDownloaderMiddleware': 1042,
+            },
+
+            'SPIDER_MIDDLEWARES': {
+            },
+        }
+        PUPPETEER_SERVICE_URL = 'http://localhost:3000'
 
     elif USE_SELENIUM:
         custom_settings = {
@@ -467,21 +474,29 @@ class CovidNewsSpider(scrapy.Spider):
 
             else:
                 if TEST_SPECIFIC:
-                    yield SplashRequest(
-                            url,
-                            callback=self.get_article_content,
-                            meta={'title': None, 'date': None, 'article_url': url},  # Pass additional data here, assigned None here for testing purpose
-                            endpoint='execute',  # for closing advertising overlay page to get to desired page
-                            args={'lua_source': self.js_script,
-                                  'lua_source_isolated': False,  # for showing self.js_script print() output
-                                  'adblock': True,
-                                  'wait': 10,
-                                  'resource_timeout': 10,
-                                  'timeout': 60  # limit the total time the Lua script can run (optional)
-                                 },
-                            splash_headers={'X-Splash-Render-HTML': 1},  # for non-pure html with javascript
-                            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
+                    if USE_PUPPETEER:
+                        yield PuppeteerRequest(
+                                url,
+                                callback=self.get_article_content,
+                                meta={'title': None, 'date': None, 'article_url': url},  # Pass additional data here, assigned None here for testing purpose
                         )
+
+                    else:
+                        yield SplashRequest(
+                                url,
+                                callback=self.get_article_content,
+                                meta={'title': None, 'date': None, 'article_url': url},  # Pass additional data here, assigned None here for testing purpose
+                                endpoint='execute',  # for closing advertising overlay page to get to desired page
+                                args={'lua_source': self.js_script,
+                                      'lua_source_isolated': False,  # for showing self.js_script print() output
+                                      'adblock': True,
+                                      'wait': 10,
+                                      'resource_timeout': 10,
+                                      'timeout': 60  # limit the total time the Lua script can run (optional)
+                                     },
+                                splash_headers={'X-Splash-Render-HTML': 1},  # for non-pure html with javascript
+                                headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
+                            )
 
                 else:
                     yield SplashRequest(
@@ -878,16 +893,16 @@ class CovidNewsSpider(scrapy.Spider):
         elif 'malaysianow.com' in response.url:
             print("parse_articles() for malaysianow.com")
             return response.css(
-                'div#__next main div.bg-white div.mx-auto.max-w-7xl.px-4.pt-10.pb-8.sm div.space-y-8.lg.lg.lg.lg div.lg a, \
-                div#__next main div.bg-white div.mx-auto.max-w-7xl.px-4.pt-10.pb-8.sm div.space-y-8.lg.lg.lg.lg div.lg div.space-y-8.sm.sm.sm.sm.sm.lg.lg div.group a, \
-                div#__next main div.bg-white div.mx-auto.max-w-7xl.py-8.px-4.sm div.border-t-2.border-gray-100.py-8 div.space-y-8 div ul.space-y-8.sm.sm.sm.sm.sm.lg.lg li a, \
-                div#__next main div.bg-white div.mx-auto.max-w-7xl.py-8.px-4.sm div.items-stretch.space-y-8.lg.lg.lg.lg div.w-full.space-y-8.lg.lg.lg.lg div.space-y-8.sm.sm.sm.sm.sm.lg.lg div.rounded-md.border-2.border-gray-100.p-6 div.space-y-4 div.divide-y.divide-gray-200 div.group.py-4 a, \
-                div#__next main div.bg-white div.mx-auto.max-w-7xl.py-8.px-4.sm div.items-stretch.space-y-8.lg.lg.lg.lg div.flex-1 div.space-y-12.sm.sm.sm.sm.lg.lg div.sm a, \
-                div#__next main div.bg-white div.mx-auto.max-w-7xl.py-8.px-4.sm div.space-y-8.lg.lg.lg.lg div.lg a, \
-                div#__next main div.bg-white div.mx-auto.max-w-7xl.py-8.px-4.sm div.space-y-8.lg.lg.lg.lg div.lg div.space-y-8.sm.sm.sm.sm.sm.lg.lg div.group a, \
-                div#__next main div.bg-white div.mx-auto.max-w-7xl.px-4.pt-8.pb-10.sm div.mx-auto.grid.gap-5.sm.lg.lg div.group.flex.flex-col.overflow-hidden.rounded-md.border-2.border-gray-100 div.flex.flex-1.flex-col.justify-between.bg-white.p-6 div.flex-1 a, \
-                div#__next main div.bg-white div.mx-auto.max-w-7xl.py-10.px-4.sm div.items-stretch.space-y-6.lg.lg.lg.lg div.flex-1 div.mx-auto.grid.gap-5.sm.lg.lg div.group.flex.flex-col.overflow-hidden.rounded-md.border-2.border-gray-100 div.flex.flex-1.flex-col.justify-between.bg-white.p-6 div.flex-1 a, \
-                div#__next main div.bg-white div.mx-auto.max-w-7xl.py-10.px-4.sm div.items-stretch.space-y-6.lg.lg.lg.lg div.space-y-8.lg.lg.lg.lg div.rounded-md.border-2.border-gray-100.p-6 div.space-y-4 div.divide-y.divide-gray-200 div.group.py-4 a'
+                'div#__next main div.bg-white div.mx-auto.max-w-7xl.px-4.pt-10.pb-8.sm\:px-6 div.space-y-8.lg\:grid.lg\:grid-cols-4.lg\:gap-8.lg\:space-y-0 div.lg\:col-span-2 a, \
+                div#__next main div.bg-white div.mx-auto.max-w-7xl.px-4.pt-10.pb-8.sm\:px-6 div.space-y-8.lg\:grid.lg\:grid-cols-4.lg\:gap-8.lg\:space-y-0 div.lg\:col-span-2 div.space-y-8.sm\:grid.sm\:grid-cols-2.sm\:gap-x-6.sm\:gap-y-8.sm\:space-y-0.lg\:gap-x-6.lg\:gap-y-6 div.group a, \
+                div#__next main div.bg-white div.mx-auto.max-w-7xl.py-8.px-4.sm\:px-6 div.border-t-2.border-gray-100.py-8 div.space-y-8 div ul.space-y-8.sm\:grid.sm\:grid-cols-2.sm\:gap-x-6.sm\:gap-y-8.sm\:space-y-0.lg\:grid-cols-3.lg\:gap-x-8 li a, \
+                div#__next main div.bg-white div.mx-auto.max-w-7xl.py-8.px-4.sm\:px-6 div.items-stretch.space-y-8.lg\:flex.lg\:flex-1.lg\:space-x-6.lg\:space-y-0 div.w-full.space-y-8.lg\:sticky.lg\:top-40.lg\:h-full.lg\:w-\[300px\] div.space-y-8.sm\:grid.sm\:grid-cols-1.sm\:gap-x-6.sm\:gap-y-8.sm\:space-y-0.lg\:gap-x-6.lg\:gap-y-6 div.rounded-md.border-2.border-gray-100.p-6 div.space-y-4 div.divide-y.divide-gray-200 div.group.py-4 a, \
+                div#__next main div.bg-white div.mx-auto.max-w-7xl.py-8.px-4.sm\:px-6 div.items-stretch.space-y-8.lg\:flex.lg\:flex-1.lg\:space-x-6.lg\:space-y-0 div.flex-1 div.space-y-12.sm\:-mt-8.sm\:space-y-0.sm\:divide-y.sm\:divide-gray-200.lg\:gap-x-8.lg\:space-y-0 div.sm\:py-8 a, \
+                div#__next main div.bg-white div.mx-auto.max-w-7xl.py-8.px-4.sm\:px-6 div.space-y-8.lg\:grid.lg\:grid-cols-4.lg\:gap-8.lg\:space-y-0 div.lg\:col-span-2 a, \
+                div#__next main div.bg-white div.mx-auto.max-w-7xl.py-8.px-4.sm\:px-6 div.space-y-8.lg\:grid.lg\:grid-cols-4.lg\:gap-8.lg\:space-y-0 div.lg\:col-span-2 div.space-y-8.sm\:grid.sm\:grid-cols-2.sm\:gap-x-6.sm\:gap-y-8.sm\:space-y-0.lg\:gap-x-6.lg\:gap-y-6 div.group a, \
+                div#__next main div.bg-white div.mx-auto.max-w-7xl.px-4.pt-8.pb-10.sm\:px-6 div.mx-auto.grid.gap-5.sm\:grid-cols-2.lg\:max-w-none.lg\:grid-cols-4 div.group.flex.flex-col.overflow-hidden.rounded-md.border-2.border-gray-100 div.flex.flex-1.flex-col.justify-between.bg-white.p-6 div.flex-1 a, \
+                div#__next main div.bg-white div.mx-auto.max-w-7xl.py-10.px-4.sm\:px-6 div.items-stretch.space-y-6.lg\:flex.lg\:flex-1.lg\:space-y-0.lg\:space-x-6 div.flex-1 div.mx-auto.grid.gap-5.sm\:grid-cols-2.lg\:max-w-none.lg\:grid-cols-3 div.group.flex.flex-col.overflow-hidden.rounded-md.border-2.border-gray-100 div.flex.flex-1.flex-col.justify-between.bg-white.p-6 div.flex-1 a, \
+                div#__next main div.bg-white div.mx-auto.max-w-7xl.py-10.px-4.sm\:px-6 div.items-stretch.space-y-6.lg\:flex.lg\:flex-1.lg\:space-y-0.lg\:space-x-6 div.space-y-8.lg\:sticky.lg\:top-40.lg\:h-full.lg\:w-\[300px\] div.rounded-md.border-2.border-gray-100.p-6 div.space-y-4 div.divide-y.divide-gray-200 div.group.py-4 a'
             )
 
         elif 'archive.org' in response.url:
@@ -1009,16 +1024,16 @@ class CovidNewsSpider(scrapy.Spider):
             link = article.css('a::attr(href)').get()
 
         elif 'malaysianow.com' in response.url:
-            title = article.css('div#__next main div.bg-white div.mx-auto.max-w-7xl.px-4.pt-10.pb-8.sm div.space-y-8.lg.lg.lg.lg div.lg a div.group.space-y-4 div.space-y-1 h3 ::text').get() or \
-                    article.css('div#__next main div.bg-white div.mx-auto.max-w-7xl.px-4.pt-10.pb-8.sm div.space-y-8.lg.lg.lg.lg div.lg div.space-y-8.sm.sm.sm.sm.sm.lg.lg div.group a div.space-y-3 div.space-y-1 h3 ::text').get() or \
-                    article.css('div#__next main div.bg-white div.mx-auto.max-w-7xl.py-8.px-4.sm div.border-t-2.border-gray-100.py-8 div.space-y-8 div ul.space-y-8.sm.sm.sm.sm.sm.lg.lg li a.group div.group.grid.grid-cols-3.items-start.gap-6.space-y-0 div.col-span-2.flex.h-full.flex-col.justify-center.space-y-1.align-middle h3 ::text').get() or \
-                    article.css('div#__next main div.bg-white div.mx-auto.max-w-7xl.py-8.px-4.sm div.items-stretch.space-y-8.lg.lg.lg.lg div.w-full.space-y-8.lg.lg.lg.lg:w-[300px] div.space-y-8.sm.sm.sm.sm.sm.lg.lg div.rounded-md.border-2.border-gray-100.p-6 div.space-y-4 div.divide-y.divide-gray-200 div.group.py-4 a div.space-y-3 div.space-y-1 h3 ::text').get() or \
-                    article.css('div#__next main div.bg-white div.mx-auto.max-w-7xl.py-8.px-4.sm div.items-stretch.space-y-8.lg.lg.lg.lg div.flex-1 div.space-y-12.sm.sm.sm.sm.lg.lg div.sm a div.group.space-y-4.sm.sm:grid-cols-5.sm:items-start.sm:gap-6.sm div.sm:col-span-3 div.space-y-4 div.space-y-1 h3 ::text').get() or \
-                    article.css('div#__next main div.bg-white div.mx-auto.max-w-7xl.py-8.px-4.sm div.space-y-8.lg.lg.lg.lg div.lg a div.group.space-y-4 div.space-y-1 h3 ::text').get() or \
-                    article.css('div#__next main div.bg-white div.mx-auto.max-w-7xl.py-8.px-4.sm div.space-y-8.lg.lg.lg.lg div.lg div.space-y-8.sm.sm.sm.sm.sm.lg.lg div.group a div.space-y-3 div.space-y-1 h3 ::text').get() or \
-                    article.css('div#__next main div.bg-white div.mx-auto.max-w-7xl.px-4.pt-8.pb-10.sm div.mx-auto.grid.gap-5.sm.lg.lg div.group.flex.flex-col.overflow-hidden.rounded-md.border-2.border-gray-100 div.flex.flex-1.flex-col.justify-between.bg-white.p-6 div.flex-1 a.mt-2.block p.font-georgia.text-xl.leading-6.text-gray-900.transition.duration-200.group-hover:text-brand-red-900 ::text').get() or \
-                    article.css('div#__next main div.bg-white div.mx-auto.max-w-7xl.py-10.px-4.sm div.items-stretch.space-y-6.lg.lg.lg.lg div.flex-1 div.mx-auto.grid.gap-5.sm.lg.lg div.group.flex.flex-col.overflow-hidden.rounded-md.border-2.border-gray-100 div.flex.flex-1.flex-col.justify-between.bg-white.p-6 div.flex-1 a.mt-2.block div.space-y-1 p ::text').get() or \
-                    article.css('div#__next main div.bg-white div.mx-auto.max-w-7xl.py-10.px-4.sm div.items-stretch.space-y-6.lg.lg.lg.lg div.space-y-8.lg.lg.lg.lg:w-[300px] div.rounded-md.border-2.border-gray-100.p-6 div.space-y-4 div.divide-y.divide-gray-200 div.group.py-4 a div.space-y-3 div.space-y-1 h3 ::text').get()
+            title = article.css('div#__next main div.bg-white div.mx-auto.max-w-7xl.px-4.pt-10.pb-8.sm\:px-6 div.space-y-8.lg\:grid.lg\:grid-cols-4.lg\:gap-8.lg\:space-y-0 div.lg\:col-span-2 a div.group.space-y-4 div.space-y-1 h3 ::text').get() or \
+                    article.css('div#__next main div.bg-white div.mx-auto.max-w-7xl.px-4.pt-10.pb-8.sm\:px-6 div.space-y-8.lg\:grid.lg\:grid-cols-4.lg\:gap-8.lg\:space-y-0 div.lg\:col-span-2 div.space-y-8.sm\:grid.sm\:grid-cols-2.sm\:gap-x-6.sm\:gap-y-8.sm\:space-y-0.lg\:gap-x-6.lg\:gap-y-6 div.group a div.space-y-3 div.space-y-1 h3 ::text').get() or \
+                    article.css('div#__next main div.bg-white div.mx-auto.max-w-7xl.py-8.px-4.sm\:px-6 div.border-t-2.border-gray-100.py-8 div.space-y-8 div ul.space-y-8.sm\:grid.sm\:grid-cols-2.sm\:gap-x-6.sm\:gap-y-8.sm\:space-y-0.lg\:grid-cols-3.lg\:gap-x-8 li a.group div.group.grid.grid-cols-3.items-start.gap-6.space-y-0 div.col-span-2.flex.h-full.flex-col.justify-center.space-y-1.align-middle h3 ::text').get() or \
+                    article.css('div#__next main div.bg-white div.mx-auto.max-w-7xl.py-8.px-4.sm\:px-6 div.items-stretch.space-y-8.lg\:flex.lg\:flex-1.lg\:space-x-6.lg\:space-y-0 div.w-full.space-y-8.lg\:sticky.lg\:top-40.lg\:h-full.lg\:w-\[300px\] div.space-y-8.sm\:grid.sm\:grid-cols-1.sm\:gap-x-6.sm\:gap-y-8.sm\:space-y-0.lg\:gap-x-6.lg\:gap-y-6 div.rounded-md.border-2.border-gray-100.p-6 div.space-y-4 div.divide-y.divide-gray-200 div.group.py-4 a div.space-y-3 div.space-y-1 h3 ::text').get() or \
+                    article.css('div#__next main div.bg-white div.mx-auto.max-w-7xl.py-8.px-4.sm\:px-6 div.items-stretch.space-y-8.lg\:flex.lg\:flex-1.lg\:space-x-6.lg\:space-y-0 div.flex-1 div.space-y-12.sm\:-mt-8.sm\:space-y-0.sm\:divide-y.sm\:divide-gray-200.lg\:gap-x-8.lg\:space-y-0 div.sm\:py-8 a div.group.space-y-4.sm\:grid.sm\:grid-cols-5.sm\:items-start.sm\:gap-6.sm\:space-y-0 div.sm\:col-span-3 div.space-y-4 div.space-y-1 h3 ::text').get() or \
+                    article.css('div#__next main div.bg-white div.mx-auto.max-w-7xl.py-8.px-4.sm\:px-6 div.space-y-8.lg\:grid.lg\:grid-cols-4.lg\:gap-8.lg\:space-y-0 div.lg\:col-span-2 a div.group.space-y-4 div.space-y-1 h3 ::text').get() or \
+                    article.css('div#__next main div.bg-white div.mx-auto.max-w-7xl.py-8.px-4.sm\:px-6 div.space-y-8.lg\:grid.lg\:grid-cols-4.lg\:gap-8.lg\:space-y-0 div.lg\:col-span-2 div.space-y-8.sm\:grid.sm\:grid-cols-2.sm\:gap-x-6.sm\:gap-y-8.sm\:space-y-0.lg\:gap-x-6.lg\:gap-y-6 div.group a div.space-y-3 div.space-y-1 h3 ::text').get() or \
+                    article.css('div#__next main div.bg-white div.mx-auto.max-w-7xl.px-4.pt-8.pb-10.sm\:px-6 div.mx-auto.grid.gap-5.sm\:grid-cols-2.lg\:max-w-none.lg\:grid-cols-4 div.group.flex.flex-col.overflow-hidden.rounded-md.border-2.border-gray-100 div.flex.flex-1.flex-col.justify-between.bg-white.p-6 div.flex-1 a.mt-2.block p.font-georgia.text-xl.leading-6.text-gray-900.transition.duration-200.group-hover\:text-brand-red-900 ::text').get() or \
+                    article.css('div#__next main div.bg-white div.mx-auto.max-w-7xl.py-10.px-4.sm\:px-6 div.items-stretch.space-y-6.lg\:flex.lg\:flex-1.lg\:space-y-0.lg\:space-x-6 div.flex-1 div.mx-auto.grid.gap-5.sm\:grid-cols-2.lg\:max-w-none.lg\:grid-cols-3 div.group.flex.flex-col.overflow-hidden.rounded-md.border-2.border-gray-100 div.flex.flex-1.flex-col.justify-between.bg-white.p-6 div.flex-1 a.mt-2.block div.space-y-1 p ::text').get() or \
+                    article.css('div#__next main div.bg-white div.mx-auto.max-w-7xl.py-10.px-4.sm\:px-6 div.items-stretch.space-y-6.lg\:flex.lg\:flex-1.lg\:space-y-0.lg\:space-x-6 div.space-y-8.lg\:sticky.lg\:top-40.lg\:h-full.lg\:w-\[300px\] div.rounded-md.border-2.border-gray-100.p-6 div.space-y-4 div.divide-y.divide-gray-200 div.group.py-4 a div.space-y-3 div.space-y-1 h3 ::text').get()
 
             date = article.css('time ::text').get()
             link = article.css('a::attr(href)').get()
@@ -1205,6 +1220,7 @@ class CovidNewsSpider(scrapy.Spider):
             "[ac]",
             "Click here for more",
             "Click here to read more",
+            "View More",
             "READ:",
             "READ MORE:",
             "Read next",
@@ -1235,10 +1251,12 @@ class CovidNewsSpider(scrapy.Spider):
             "Already a subscriber?",
             "We use cookies",
             "Tags / Keywords:",
+            "To be updated with all the latest news and analyses daily.",
             "For more news about the novel coronavirus click here",
             "Follow INQUIRER.net",
             "The Inquirer Foundation",
             "ADVT",
+            "Best viewed on",
             "Report it to us",
             "COPYRIGHT ©",
             "copyright© mediacorp 2023"
@@ -1533,7 +1551,7 @@ class CovidNewsSpider(scrapy.Spider):
 
             elif 'thestar.com.my' in response.url:
                 #body = response.css('p:not(.caption):not(.date) ::text').getall()
-                body = response.xpath('//p[not(contains(@class, "caption")) and not(contains(@class, "date")) and not(contains(@class, "reactions__desc")) and not(contains(@class, "footer-bottom")) and not(contains(., "Do you have question")) and not(ancestor::div[@class="plan-temp_desc relative"]) and not(.//span[contains(@class, "inline-caption")]) and not(contains(., "ALSO READ:"))]//text() | //li[not(*)]/text()').getall()
+                body = response.xpath('//p[not(contains(@class, "caption")) and not(contains(@class, "date")) and not(contains(@class, "reactions__desc")) and not(contains(@class, "footer-bottom")) and not(contains(., "Do you have question")) and not(ancestor::div[@class="plan-temp_desc relative"]) and not(ancestor::div[@class="klci"]) and not(ancestor::div[@class="sponsored-panel"]) and not(ancestor::div[@class="for-side api-widget"]) and not(.//span[contains(@class, "inline-caption")]) and not(contains(., "ALSO READ:"))]//text() | //li[not(*)]/text()').getall()
 
                 # Get the text of the <li> tags without any child tags
                 li_texts = response.xpath('//li[not(*)]/text()').getall()
