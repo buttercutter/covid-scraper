@@ -132,6 +132,8 @@ incomplete_articles = ["https://www.straitstimes.com/singapore/education/ask-san
                        "https://www.thestar.com.my/news/nation/2023/09/01/malaysian-aviation-group-announces-three-new-routes-to-india",
                        "https://www.thestar.com.my/news/nation/2022/04/26/toll-free-travel-and-discounts-to-make-a-merrier-raya",
                        "https://www.thestar.com.my/2004/10/03/umno-in-her-blood",
+                       "https://www.thestar.com.my/opinion/columnists/analysis/2022/10/15/an-election-like-no-other",
+                       "https://www.thestar.com.my/2006/02/19/the-bard-brickfields-style",
                        "https://mb.com.ph/rss/articles"
                         ]
 
@@ -148,6 +150,8 @@ class CovidNewsSpider(scrapy.Spider):
 
     if TEST_SPECIFIC:
         start_urls = [
+                      "https://www.thestar.com.my/aseanplus/aseanplus-news/2022/03/16/food-aid-delivered-to-54393-homes-since-onset-of-second-covid-wave-in-brunei",  # empty article
+                      "https://www.thestar.com.my/tech/tech-news/2022/11/08/amazon-sets-up-warehouse-in-eastern-china-for-faster-overseas-ecommerce-signalling-confidence-in-consumer-spending",  # javacript rendering is wrong
                       "https://www.thestar.com.my/news/regional/2020/05/17/south-east-asia---caught-in-the-middle-of-a-new-us-china-cold-war",  # javacript rendering is wrong
                       "https://www.thestar.com.my/tech/tech-news/2020/10/01/covid-19-controls-turn-asia-into-global-surveillance-hotspot-analysts-say",  # javacript rendering is wrong
                       "https://www.thestar.com.my/news/education/2022/05/22/we-give-it-all-we-got",  # javacript rendering is wrong
@@ -1172,8 +1176,7 @@ class CovidNewsSpider(scrapy.Spider):
 
 
     def remove_media_credit(self, text):
-        text = re.sub(r"\(.*?pic.*?\)", "", text, flags=re.DOTALL)
-        text = re.sub(r"\(.*?Pic.*?\)", "", text, flags=re.DOTALL)
+        text = re.sub(r"\([^()]*pic[^()]*\)", "", text, flags=re.IGNORECASE)
         text = re.sub(r"\(Image: .+?\)", "", text, flags=re.DOTALL)
         text = re.sub(r"\(Photo.+?\)", "", text, flags=re.DOTALL)
         text = re.sub(r".+?Photo from.+?\n", "", text, flags=re.DOTALL)
@@ -1278,6 +1281,8 @@ class CovidNewsSpider(scrapy.Spider):
             "— The Nation Thailand/ANN",
             "- Philippines Daily Inquirer/ANN",
             "— Vietnam News",
+            "- Vietnam News/ANN",
+            "- Phnom Penh Post/ANN",
             "– South China Morning Post",
             "– Thomson Reuters Foundation",
             "– Los Angeles Times/Tribune News Service",
@@ -1582,7 +1587,7 @@ class CovidNewsSpider(scrapy.Spider):
                     # sometimes there could a meaningless <span> with a single text character
                     if response.css('div#m-pd2 > span:nth-child(2)::text').get() and len(response.css('div#m-pd2 > span:nth-child(2)::text').get()) > 1:
                         date = response.css('div#m-pd2 > span:nth-child(2)::text').get()
-                    if date and not self.is_a_valid_date(date) and response.css('div#m-pd2 > span:nth-child(3)::text').get() and len(response.css('div#m-pd2 > span:nth-child(3)::text').get()) > 1:
+                    if ((date and not self.is_a_valid_date(date)) or date is None) and response.css('div#m-pd2 > span:nth-child(3)::text').get() and len(response.css('div#m-pd2 > span:nth-child(3)::text').get()) > 1:
                         date = response.css('div#m-pd2 > span:nth-child(3)::text').get()
 
                     date = date or \

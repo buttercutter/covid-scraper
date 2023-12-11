@@ -76,7 +76,7 @@ class SeleniumMiddleware:
 
     def wait_for_ajax(self):
         wait_start = time.time()
-        while time.time() - wait_start < 15:  # wait for 15 seconds
+        while time.time() - wait_start < 10:  # wait for 10 seconds
             try:
                 is_ajax_finished = self.driver.execute_script("return jQuery.active == 0")
                 if is_ajax_finished:
@@ -85,7 +85,7 @@ class SeleniumMiddleware:
                 pass
             time.sleep(0.5)
         else:
-            print("Waited 15 seconds for AJAX, moving on regardless if it's finished.")
+            print("Waited 10 seconds for AJAX, moving on regardless if it's finished.")
             #time.sleep(10)  # Wait for another 10 seconds, for debugging purpose
 
     def process_request(self, request, spider):
