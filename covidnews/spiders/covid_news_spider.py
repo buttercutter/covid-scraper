@@ -563,6 +563,9 @@ class CovidNewsSpider(scrapy.Spider):
                 #more_links = response.css('div.queryly_item_row > a::attr(href)').getall()
                 more_links = response.css('a:contains("Next Page")::attr(href)').get()
 
+        elif 'philstar.com' in response.url:
+            more_links = response.css('a::attr(href)').getall()
+
         elif 'inquirer.net' in response.url:
             more_links = response.css('a::attr(href)').getall()
 
@@ -626,6 +629,7 @@ class CovidNewsSpider(scrapy.Spider):
         url = re.sub(r"https?://lifestyle\.inq@inquirer\.net", "https://lifestyle.inquirer.net", url)
         url = re.sub(r"https?://usiness\.inquirer\.net", "https://business.inquirer.net", url)
         url = re.sub(r"https?://ebudailynews\.inquirer\.net", "https://cebudailynews.inquirer.net", url)
+        url = re.sub(r"https?://globnalnation\.inquirer\.net", "https://globalnation.inquirer.net", url)
         url = re.sub(r"https?://www\.bandera\.inquirer\.net", "https://bandera.inquirer.net", url)
         url = re.sub(r"https?://www\.newsinfo\.inquirer\.net", "https://newsinfo.inquirer.net", url)
         url = re.sub(r"https?://nwsinfo\.inquirer\.net", "https://newsinfo.inquirer.net", url)
@@ -761,6 +765,18 @@ class CovidNewsSpider(scrapy.Spider):
             print("parse_articles() for straitstimes")
             return response.css('div.card-body')
             #return response.css('div.queryly_item_row')
+
+        elif 'philstar.com' in response.url:
+            print("parse_articles() for philstar.com")
+            return response.css(
+                    'div.carousel__item__title h2 a, \
+                    div.theContent div#news_main div.jscroll-inner div.news_column.latest div.tiles.late.ribbon-cont div.ribbon div.ribbon_content div.ribbon_title h2 a, \
+                    div.theContent div#news_main div.jscroll-inner div#home_columnists div#home_columnists_content div#home_columnists_actual.owl-carousel.owl-theme.owl-loaded.owl-drag div.owl-stage-outer div.owl-stage div.owl-item.active div.home_columnists_cell div.home_columnists_cell_details h3 a, \
+                    div.theContent div#news_main div.jscroll-inner div#inside_philstar table#inside_philstar_cells tbody tr td.inside_cell div.inside_cell_title_main h3 a, \
+                    div.theContent div#news_main div.jscroll-inner div#inside_philstar table#inside_philstar_cells tbody tr td.inside_cell ul li h3 a, \
+                    div.news_title h2 a, \
+                    div.news_title a'
+                    )
 
         elif 'inquirer.net' in response.url:
             print("parse_articles() for inquirer.net")
@@ -993,6 +1009,11 @@ class CovidNewsSpider(scrapy.Spider):
                     article.css('time::attr(datetime)').get() or \
                     article.css('.story-postdate::text').get()
 
+            link = article.css('a::attr(href)').get()
+
+        elif 'philstar.com' in response.url:
+            title = article.css('a ::text').get()
+            date = article.css('div.article__date-published').get()
             link = article.css('a::attr(href)').get()
 
         elif 'inquirer.net' in response.url:
@@ -1231,7 +1252,6 @@ class CovidNewsSpider(scrapy.Spider):
             "is Professor",
             "is a lecturer",
             "is a senior lecturer",
-            "is President of",
             "Note:",
             "Editor's note",
             "Editorial note:",
@@ -1259,6 +1279,7 @@ class CovidNewsSpider(scrapy.Spider):
             "—With a report from",
             "—WITH REPORTS FROM",
             "—Jerome",
+            "— Bella Perez-Rubio",
             "— KHIRTHNADHEVI KUMAR",
             "- Jakarta Post",
             "— Jakarta Post",
@@ -1326,6 +1347,7 @@ class CovidNewsSpider(scrapy.Spider):
             "For more news about the novel coronavirus click here",
             "Follow INQUIRER.net",
             "The Inquirer Foundation",
+            "Philstar.com is one of the most ",
             "ADVT",
             "Best viewed on",
             "Report it to us",
@@ -1524,6 +1546,16 @@ class CovidNewsSpider(scrapy.Spider):
 
                     if response.css('.st-byline::text').get() is not None and 'Published: ' in date:
                         date = date.split('Published: ')[-1]
+
+            elif 'philstar.com' in response.url:
+                print("get_article_content for philstar")
+                body = response.css('p ::text').getall()
+
+                if title is None:
+                    title = response.css('div.article__title h1 ::text').get()
+
+                if date is None and response.css('div.article__date-published ::text').get():
+                    date = response.css('div.article__date-published ::text').get().split(' | ')[0]
 
             elif 'inquirer.net' in response.url:
                 print("get_article_content for inquirer")
