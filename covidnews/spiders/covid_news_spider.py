@@ -55,7 +55,7 @@ if search_country == 'singapore':
     allowed_domain_names = ["straitstimes.com", "channelnewsasia.com"]
 
 elif search_country == 'philippines':
-    allowed_domain_names = ["mb.com.ph", "inquirer.net"]
+    allowed_domain_names = ["mb.com.ph", "inquirer.net", "philstar.com"]
 
 elif search_country == 'malaysia':
     allowed_domain_names = ["nst.com.my", "thestar.com.my", "bernama.com/en/", "malaysianow.com", "malaymail.com", "freemalaysiatoday.com", "malaysiakini.com"]
@@ -115,6 +115,7 @@ irrelevant_subdomain_names = ["channelnewsasia.com/watch/", "cnaluxury.channelne
                               "entertainment.inquirer.net", "business.inquirer.net", "opinion.inquirer.net",
                               "sports.inquirer.net", "technology.inquirer.net", "usa.inquirer.net",
                               "pop.inquirer.net", "inquirer.net/inqpop", "lifestyle.inquirer.net",
+                              "philstar.com/sports", "philstar.com/lifestyle", "philstar.com/business",
                               "mb.com.ph/our-company"]
 
 # articles that are 404 broken links, or published with only a title, and without any body content and publish date
@@ -154,6 +155,7 @@ class CovidNewsSpider(scrapy.Spider):
                       "https://www.thestar.com.my/tech/tech-news/2022/11/08/amazon-sets-up-warehouse-in-eastern-china-for-faster-overseas-ecommerce-signalling-confidence-in-consumer-spending",  # javacript rendering is wrong
                       "https://www.thestar.com.my/news/regional/2020/05/17/south-east-asia---caught-in-the-middle-of-a-new-us-china-cold-war",  # javacript rendering is wrong
                       "https://www.thestar.com.my/tech/tech-news/2020/10/01/covid-19-controls-turn-asia-into-global-surveillance-hotspot-analysts-say",  # javacript rendering is wrong
+                      "https://www.thestar.com.my/tech/tech-news/2021/03/02/beijing-dismisses-alleged-chinese-hacking-of-indian-vaccine-makers",  # javacript rendering is wrong
                       "https://www.thestar.com.my/news/education/2022/05/22/we-give-it-all-we-got",  # javacript rendering is wrong
                       "https://www.thestar.com.my/tech/tech-news/2022/08/24/anti-work-redditors-say-quiet-quittingreally-means-just-doing-your-job",  # javacript rendering is wrong
                       "https://www.thestar.com.my/opinion/columnists/on-your-side/2020/08/21/a-second-chance-to-keep-hopes-alive",  # javacript rendering is wrong
@@ -202,7 +204,8 @@ class CovidNewsSpider(scrapy.Spider):
                 #'https://www.manilatimes.net/search?query=covid',  # forbidden by the /search rule in robots.txt
                 #'https://www.manilatimes.net/',  # almost all articles requires digital subscription fees
                 #'https://mb.com.ph/search-results?s=covid',  # splash is not working yet
-                'https://www.inquirer.net/'
+                #'https://www.inquirer.net/',  # already finished the entire scraping process
+                'https://www.philstar.com/'
             ]
 
         elif search_country == 'malaysia':
@@ -535,7 +538,7 @@ class CovidNewsSpider(scrapy.Spider):
     def get_next_pages(self, response):
         print("inside get_next_pages(), response.url = ", response.url)
 
-        link = response.url.strip()
+        link = response.url.strip().lower()
 
         domain_name = self.extract_domain_name(link)
 
@@ -652,7 +655,7 @@ class CovidNewsSpider(scrapy.Spider):
             yield None
 
         articles = None
-        link = response.url.strip()
+        link = response.url.strip().lower()
         print("inside parse(), response.url = ", response.url)
 
         INTERNETARCHIVE_FULL_TEXT = \
@@ -1197,6 +1200,8 @@ class CovidNewsSpider(scrapy.Spider):
 
 
     def remove_media_credit(self, text):
+        text = re.sub(r"\([^()]*first of two parts[^()]*\)", "", text, flags=re.IGNORECASE)
+        text = re.sub(r"\([^()]*Second of two parts[^()]*\)", "", text, flags=re.IGNORECASE)
         text = re.sub(r"\([^()]*pic[^()]*\)", "", text, flags=re.IGNORECASE)
         text = re.sub(r"\(Image: .+?\)", "", text, flags=re.DOTALL)
         text = re.sub(r"\(Photo.+?\)", "", text, flags=re.DOTALL)
@@ -1254,11 +1259,13 @@ class CovidNewsSpider(scrapy.Spider):
             "is a senior lecturer",
             "Note:",
             "Editor's note",
+            "Editor’s Note:",
             "Editorial note:",
             "Correction note:",
             "Clarification note:",
             "Brian Martin is the managing editor of The Star",
             "The article was edited",
+            "This story was produced",
             "The story has been updated",
             "This story has been updated",
             "This article has been updated",
@@ -1270,17 +1277,25 @@ class CovidNewsSpider(scrapy.Spider):
             "© 2021 The Financial Times",
             "© 2022 The Financial Times",
             "© 2023 The Financial Times",
+            "[atm]",
             "(Source: AP)",
             "(Reporting by",
             "Additional reporting by",
-            "Edited by",
+            "Edited by",  # Comment this out for manual scraping due to truncated words for "accrEdited by"
             "Produced by:",
             "Brought to you by",
+            "WITH REPORT FROM",
             "—With a report from",
             "—WITH REPORTS FROM",
             "—Jerome",
+            "–Jaime Laude",
+            "–Helen Flores",
+            "–Elizabeth Marcelo",
+            "–Rudy Santos",
             "— Bella Perez-Rubio",
             "— KHIRTHNADHEVI KUMAR",
+            "— Christian Deiparine",
+            "— Kaycee Valmonte with Agence France-Presse",
             "- Jakarta Post",
             "— Jakarta Post",
             "– AP",
@@ -1549,7 +1564,7 @@ class CovidNewsSpider(scrapy.Spider):
 
             elif 'philstar.com' in response.url:
                 print("get_article_content for philstar")
-                body = response.css('p ::text').getall()
+                body = response.xpath('//p[not(ancestor::div[@class="twitter-tweet"])]//text()').getall()
 
                 if title is None:
                     title = response.css('div.article__title h1 ::text').get()
