@@ -116,6 +116,7 @@ irrelevant_subdomain_names = ["channelnewsasia.com/watch/", "cnaluxury.channelne
                               "sports.inquirer.net", "technology.inquirer.net", "usa.inquirer.net",
                               "pop.inquirer.net", "inquirer.net/inqpop", "lifestyle.inquirer.net",
                               "philstar.com/sports", "philstar.com/lifestyle", "philstar.com/business",
+                              "philstar.com/entertainment",
                               "mb.com.ph/our-company"]
 
 # articles that are 404 broken links, or published with only a title, and without any body content and publish date
@@ -135,16 +136,27 @@ incomplete_articles = ["https://www.straitstimes.com/singapore/education/ask-san
                        "https://www.thestar.com.my/2004/10/03/umno-in-her-blood",
                        "https://www.thestar.com.my/opinion/columnists/analysis/2022/10/15/an-election-like-no-other",
                        "https://www.thestar.com.my/2006/02/19/the-bard-brickfields-style",
+                       "https://www.thestar.com.my/tech/tech/tech-news/2023/12/15/the-last-of-us-online-game-cancelled-by-sonys-naughty-dog-studio",
+                       "https://www.thestar.com.my/tech/tech/tech-news/2023/12/15/chinas-weibo-asks-bloggers-to-avoid-badmouthing-the-economy",
+                       "https://www.thestar.com.my/tech/tech/tech-news/2023/12/15/heartless-selfish-woman-in-china-cancels-ride-hail-car-after-cabbie-drove-40km-waited-half-hour-but-failed-to-help-with-bags",
+                       "https://www.thestar.com.my/metro/metro/metro-news/2023/12/15/rm2bil-project-to-rejuvenate-shah-alam-starting-next-year",
+                       "https://www.thestar.com.my/metro/metro/metro-news/2023/12/15/dbkl-high-rise-project-has-met-all-conditions",
+                       "https://www.thestar.com.my/metro/metro/metro-news/2023/12/15/drain-in-low-lying-area-upgraded",
+                       "https://www.thestar.com.my/metro/metro/metro-news/2023/12/15/cruise-into-the-sunset",
+                       "https://www.thestar.com.my/metro/metro/metro-news/2023/12/15/loud-tweets-ruffle-feathers",
+                       "https://www.thestar.com.my/aseanplus/2022/11/30/chance-for-every-malaysian-to-save",
+                       "https://www.thestar.com.my/tech/tech/tech-news/2023/12/18/outrage-as-man-drags-wife-out-of-car-leaving-crying-toddler-son-on-busy-road-in-china-during-row-over-boys-education",
+                       "https://www.thestar.com.my/news/nation/2022/10/13/tommy-thomas-was-not-cut-out-to-be-ag-reads-task-force-report",
+                       "https://www.thestar.com.my/aseanplus/aseanplus-news/2022/04/22/75-year-old-lost-us1-million-in-china-officials-impersonation-scam",
+                       "https://www.thestar.com.my/2003/07/27/one-big-shopping-spree--for-carnival",
                        "https://mb.com.ph/rss/articles"
                         ]
-
 
 # subdomain_1.subdomain_2.domain.com.eu , 3 if excluding subdomains
 MAX_NUM_OF_DOMAIN_TEXT = 3
 
 # Test specific webpages with higher priority
 TEST_SPECIFIC = False
-
 
 class CovidNewsSpider(scrapy.Spider):
     name = 'covid_news_spider'
@@ -883,9 +895,9 @@ class CovidNewsSpider(scrapy.Spider):
                     ul#justInListing.timeline.vTicker li.row div.col-xs-8.col-sm-10.col-md-9.tm-content-wrap div.timeline-content p a, \
                     div.focus section.latest-news div.sub-section-list div.row.list-listing, \
                     div.featuredDiv div.focus-story div.row div div.col-xs-12.col-sm-4.featuredContent div.content h2, \
-                    div.row ul.story-set.col-sm-3.story3 li.row.hidden-visual, \
-                    div.story-set-group.story2 div.col-sm-6.in-sec-story div.row div.col-xs-7.left.col-sm-12, \
-                    div#section1.story-set-group div.col-sm-3.in-sec-story div.row div.col-xs-7.left.col-sm-12, \
+                    div.row ul.story-set.col-sm-3.story3 li.row.hidden-visual div.col-xs-7.left.col-sm-12 h2 a, \
+                    div.story-set-group.story2 div.col-sm-6.in-sec-story div.row div.col-xs-7.left.col-sm-12 a, \
+                    div#section1.story-set-group div.col-sm-3.in-sec-story div.row div.col-xs-7.left.col-sm-12 h2, \
                     div#section2.sub-section-list div.row.list-listing div.col-xs-7.col-sm-9 h2, \
                     div#story-recom-list.desc-wrap div.desc div.col-xs-7.col-sm-9.col-md-7.left, \
                     div#divOpinionWidget section.side-combo-2 div.desc-wrap div.row.desc div.col-xs-9.col-sm-10.right, \
@@ -1277,6 +1289,8 @@ class CovidNewsSpider(scrapy.Spider):
             "© 2021 The Financial Times",
             "© 2022 The Financial Times",
             "© 2023 The Financial Times",
+            "TSB",
+            "lzb",
             "[atm]",
             "(Source: AP)",
             "(Reporting by",
@@ -1287,11 +1301,17 @@ class CovidNewsSpider(scrapy.Spider):
             "WITH REPORT FROM",
             "—With a report from",
             "—WITH REPORTS FROM",
+            "—REPORTS FROM",
             "—Jerome",
             "–Jaime Laude",
             "–Helen Flores",
             "–Elizabeth Marcelo",
+            "—MA. APRIL MIER-MANJARES",
+            "—JUN A. MALIG",
             "–Rudy Santos",
+            "—Leila B. Salaverria",
+            "—NESTLE SEMILLA",
+            "—NESTOR",
             "— Bella Perez-Rubio",
             "— KHIRTHNADHEVI KUMAR",
             "— Christian Deiparine",
