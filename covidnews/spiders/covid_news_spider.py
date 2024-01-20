@@ -68,7 +68,7 @@ inaccessible_subdomain_names = ["olympianbuilder.straitstimes.com", "ststaff.str
                                 "awsstaff.straitstimes.com", "eee.straitstimes.com",
                                 "prdstaff.straitstimes.com", "staff.straitstimes.com",
                                 "stompcms.straitstimes.com",
-                                "classifieds.thestar.com.my",
+                                "classifieds.thestar.com.my", "starnie@thestar.com.my",
                                 "news.mb.com.ph",
                                 "live.inquirer.net",
                                 "inqshop.inquirer.net", "misc.inquirer.net", "nment.inquirer.net",
@@ -147,6 +147,7 @@ incomplete_articles = ["https://www.straitstimes.com/singapore/education/ask-san
                        "https://www.thestar.com.my/aseanplus/2022/11/30/chance-for-every-malaysian-to-save",
                        "https://www.thestar.com.my/tech/tech/tech-news/2023/12/18/outrage-as-man-drags-wife-out-of-car-leaving-crying-toddler-son-on-busy-road-in-china-during-row-over-boys-education",
                        "https://www.thestar.com.my/news/nation/2022/10/13/tommy-thomas-was-not-cut-out-to-be-ag-reads-task-force-report",
+                       "https://www.thestar.com.my/news/nation/2023/09/06/wisma-pertahanan-names-new-armed-forces-chief",
                        "https://www.thestar.com.my/aseanplus/aseanplus-news/2022/04/22/75-year-old-lost-us1-million-in-china-officials-impersonation-scam",
                        "https://www.thestar.com.my/2003/07/27/one-big-shopping-spree--for-carnival",
                        "https://mb.com.ph/rss/articles"
@@ -194,11 +195,33 @@ class CovidNewsSpider(scrapy.Spider):
                       "https://www.channelnewsasia.com/singapore/new-covid-19-variants-uk-south-africa-strains-b117-explainer-416156",  # AttributeError: 'list' object has no attribute 'encode'
                       "https://www.channelnewsasia.com/singapore/mpa-covid-19-10-000-frontline-workers-vaccinations-415726",  # AttributeError: 'list' object has no attribute 'lower'
                       "https://www.channelnewsasia.com/singapore/covid19-how-to-choose-masks-filtration-bfe-surgical-1382776",  # AttributeError: 'list' object has no attribute 'lower'
+                      "https://newsinfo.inquirer.net/1459925/octa-notes-increasing-covid-19-cases-in-cebu-city-lapu-lapu",  # part of the sentence text is embedded inside images
                       "https://www.channelnewsasia.com/singapore/covid-19-locations-visited-queensway-shopping-masjid-assyakirin-712556",  # part of the sentence text is embedded inside images
                       "https://www.channelnewsasia.com/singapore/places-visited-by-covid-19-cases-moh-novena-square-fairprice-1851511",  # part of the sentence text is embedded inside images
                       "https://www.straitstimes.com/singapore/health/high-vaccination-rate-risk-of-hospitals-being-swamped-cited-as-reasons-for-and",  # part of the sentence text is embedded inside images
                       "https://www.straitstimes.com/singapore/changed-forever-by-one-pandemic-is-singapore-ready-for-the-next"  # irrelevant advertisement paragraph text by SPH Media
                      ]
+
+        # Try to open the file in read mode
+        try:
+            # opening the file in read mode
+            my_file = open("manual_scrape.txt", "r")
+
+            # reading the file
+            data = my_file.read()
+
+            # splitting the text it when '\n' is seen.
+            lines = data.split("\n")
+            print(f"len(lines) = {len(lines)}")
+
+            start_urls = start_urls + lines
+            print(f"len(start_urls) = {len(start_urls)}")
+
+            # close the file
+            my_file.close()
+
+        except FileNotFoundError:
+            print("The file manual_scrape.txt does not exist.")
 
     else:
         if search_country == 'singapore':
@@ -900,7 +923,7 @@ class CovidNewsSpider(scrapy.Spider):
                     div#section1.story-set-group div.col-sm-3.in-sec-story div.row div.col-xs-7.left.col-sm-12 h2, \
                     div#section2.sub-section-list div.row.list-listing div.col-xs-7.col-sm-9 h2, \
                     div#story-recom-list.desc-wrap div.desc div.col-xs-7.col-sm-9.col-md-7.left, \
-                    div#divOpinionWidget section.side-combo-2 div.desc-wrap div.row.desc div.col-xs-9.col-sm-10.right, \
+                    div#divOpinionWidget section.side-combo-2 div.desc-wrap div.row.desc div.col-xs-9.col-sm-10.right p a, \
                     div.focus-story.focus-lifestyle div.row div.col-xs-12.col-sm-4, \
                     div.sub-section-list.story-set-lifestyle div.col-xs-12.col-sm-6.bot-20.lifemain div.row div.col-xs-12.left, \
                     div.thumb__container.viewpoints__stories.row div.col-sm-6.thumb__item div.thumb.thumb--vp div.thumb__inner, \
@@ -1291,7 +1314,9 @@ class CovidNewsSpider(scrapy.Spider):
             "© 2023 The Financial Times",
             "TSB",
             "lzb",
+            "/lzb",
             "[atm]",
+            "/atm",
             "(Source: AP)",
             "(Reporting by",
             "Additional reporting by",
@@ -1304,14 +1329,21 @@ class CovidNewsSpider(scrapy.Spider):
             "—REPORTS FROM",
             "—Jerome",
             "–Jaime Laude",
+            "—Julie",
             "–Helen Flores",
             "–Elizabeth Marcelo",
             "—MA. APRIL MIER-MANJARES",
+            "—Jovic",
+            "—JOANNA",
             "—JUN A. MALIG",
+            "—DONA",
+            "—Nikka",
             "–Rudy Santos",
             "—Leila B. Salaverria",
             "—NESTLE SEMILLA",
             "—NESTOR",
+            "—Patricia",
+            "—Tina",
             "— Bella Perez-Rubio",
             "— KHIRTHNADHEVI KUMAR",
             "— Christian Deiparine",
