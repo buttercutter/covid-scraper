@@ -60,6 +60,8 @@ elif search_country == 'philippines':
 elif search_country == 'malaysia':
     allowed_domain_names = ["nst.com.my", "thestar.com.my", "bernama.com/en/", "malaysianow.com", "malaymail.com", "freemalaysiatoday.com", "malaysiakini.com"]
 
+elif search_country == 'vietnam':
+    allowed_domain_names = ["vnanet.vn/en/", "en.vietnamplus.vn"]
 
 # not accessible due to DNS lookup error or the webpage had since migrated to other subdomains
 inaccessible_subdomain_names = ["olympianbuilder.straitstimes.com", "ststaff.straitstimes.com", "media.straitstimes.com",
@@ -77,7 +79,7 @@ inaccessible_subdomain_names = ["olympianbuilder.straitstimes.com", "ststaff.str
                                 "newsinafo.inquirer.net", "yass.inquirer.net", "yasss.inquirer.net"
                                 ]
 
-# these subdomains contains irrelevant contents for region-based, text-based media article scraping
+# these subdomains contains irrelevant contents for non-subscription-based, region-based, text-based media article scraping
 irrelevant_subdomain_names = ["channelnewsasia.com/watch/", "cnaluxury.channelnewsasia.com",
                               "straitstimes.com/multimedia/", "graphics.straitstimes.com/",
                               "cnalifestyle.channelnewsasia.com/interactives/", "channelnewsasia.com/video",
@@ -117,6 +119,8 @@ irrelevant_subdomain_names = ["channelnewsasia.com/watch/", "cnaluxury.channelne
                               "pop.inquirer.net", "inquirer.net/inqpop", "lifestyle.inquirer.net",
                               "philstar.com/sports", "philstar.com/lifestyle", "philstar.com/business",
                               "philstar.com/entertainment",
+                              "news.vnanet.vn/en/",  # only works for paid login subscription
+                              "vnanet.vn/en/anh/vna-photos", "seagames-en.vnanet.vn",
                               "mb.com.ph/our-company"]
 
 # articles that are 404 broken links, or published with only a title, and without any body content and publish date
@@ -252,6 +256,11 @@ class CovidNewsSpider(scrapy.Spider):
                 'https://www.freemalaysiatoday.com/',
                 'https://www.malaysiakini.com/',
                 'https://www.thestar.com.my/'
+            ]
+
+        elif search_country == 'vietnam':
+            start_urls = [
+                'https://vnanet.vn/en/'
             ]
 
     # settings for Javacript handling
@@ -563,9 +572,14 @@ class CovidNewsSpider(scrapy.Spider):
         # Concatenates the domain and the suffix (TLD)
         domain_name = f"{extracted.domain}.{extracted.suffix}"
 
-        if search_country == 'malaysia' and domain_name == 'bernama.com':
+        if (search_country == 'malaysia' and domain_name == 'bernama.com') or \
+           (search_country == 'vietnam' and domain_name == 'vnanet.vn'):
             # for specific use case only
             domain_name = domain_name + "/en/"
+
+        elif (search_country == 'vietnam' and domain_name == 'vietnamplus.vn'):
+            # for specific use case only
+            domain_name = "en." + domain_name
 
         return domain_name
 
@@ -628,6 +642,9 @@ class CovidNewsSpider(scrapy.Spider):
             more_links = response.css('a::attr(href)').getall()
 
         elif 'freemalaysiatoday.com' in response.url:
+            more_links = response.css('a::attr(href)').getall()
+
+        elif 'vnanet.vn/en/' in response.url:
             more_links = response.css('a::attr(href)').getall()
 
         elif 'archive.org' in response.url:
@@ -997,6 +1014,19 @@ class CovidNewsSpider(scrapy.Spider):
                 div#__next main.sc-hzhJZQ.gqYvvz.d-flex.flex-column.flex-grow-1 div.sc-gEvEer.iBuEiq.flex-grow-1 div.sc-eqUAAy.fgprtA.container-xxl div.row div.col-md-8 section.sc-gEvEer.iBuEiq.p-4 section.sc-gEvEer.iBuEiq.pt-5.pb-3.px-0.fs-16 div.row.gx-3 article.col-6.col-sm-3.mb-3 blockquote a'
             )
 
+        elif 'vnanet.vn/en' in response.url:
+            return response.css(
+                'div.col-big-news.fl-left div.title-big-news h2 > a, \
+                div.list-box-rows.list-box-rows-2.scrollbar.divTopNews ul li.parentMenuItem a, \
+                li.act-cate-main div.sub-cate-main div.big-news-cate-main div.title-bg-grd.title-big-news-main > a, \
+                li.act-cate-main div.sub-cate-main div.list-box-rows.list-box-rows-4.cf ul li > a, \
+                div.list-box-rows.list-box-rows-5.scrollbar ul#divOtherNews li > a, \
+                div.ct-post-details div.feature-list-news ul li div.grp-panel > a, \
+                div.ct-post-details div.grp-list-news-2 ul li div.grp-panel > a, \
+                div.sidebar-rows.fix-sidebar-rows div#divServiceNews.list-news-dv ul li div.grp-panel > a, \
+                div.divTextView.newsListForm div.flex-container div.flex-item.meta-data-port a'
+            )
+
         elif 'archive.org' in response.url:
             if 'https://archive.org/details/' in response.url:
                 # Extract article (only the FULL_TEXT download page) from the summary page
@@ -1165,6 +1195,11 @@ class CovidNewsSpider(scrapy.Spider):
                     article.css('div#__next main.sc-hzhJZQ.gqYvvz.d-flex.flex-column.flex-grow-1 div.sc-gEvEer.iBuEiq.flex-grow-1 div.sc-eqUAAy.fgprtA.container-xxl div.row div.col-md-8 section.sc-gEvEer.iBuEiq.p-4 section.sc-gEvEer.iBuEiq.pt-5.pb-3.px-0.fs-16 div.row.gx-3 article.col-6.col-sm-3.mb-3 blockquote a ::text').get()
 
             date = article.css('time ::text').get()
+            link = article.css('a::attr(href)').get()
+
+        elif 'vnanet.vn/en/' in response.url:
+            title = article.css('a ::text').get()
+            date = article.css('div.article__date-published').get()
             link = article.css('a::attr(href)').get()
 
         elif 'archive.org' in response.url:
@@ -1773,6 +1808,28 @@ class CovidNewsSpider(scrapy.Spider):
                     date = response.css('time ::text').get()
                     print("date is still None for freemalaysiatoday")
 
+            elif 'vnanet.vn/en/' in response.url:
+                body = response.css('p ::text').getall()
+
+                if title is None:
+                    title = response.css('div.details__header h1::text').get()
+
+                date = response.css('time::text').get()
+
+                if date is None:
+                    print("date is None for vnanet")
+
+            elif 'en.vietnamplus.vn' in response.url:
+                body = response.css('p ::text').getall()
+
+                if title is None:
+                    title = response.css('div#body-row.row.oku_font div.col.pt-3 div.container-fluid.px-0 div.row div.col-12.col-sm-12.col-md-12.col-lg-8 h1.h2::text').get()
+
+                date = response.css('time::text').get()
+
+                if date is None:
+                    print("date is None for vietnamplus")
+
             elif 'archive.org' in response.url:
                 body = response.css('div.article p::text').getall() or \
                        response.css('div.text-long').getall() or \
@@ -1908,6 +1965,10 @@ class CovidNewsSpider(scrapy.Spider):
 
             elif search_country == 'malaysia':
                 # https://en.wikipedia.org/wiki/Malaysian_movement_control_order
+                date_is_within_covid_period = ((published_year >= 2020) and (published_year <= 2022))
+
+            elif search_country == 'vietnam':
+                # https://en.wikipedia.org/wiki/Timeline_of_the_COVID-19_pandemic_in_Vietnam
                 date_is_within_covid_period = ((published_year >= 2020) and (published_year <= 2022))
 
         print(f"date = {date}, and published_year = {published_year}, and date_is_within_covid_period = {date_is_within_covid_period}")
