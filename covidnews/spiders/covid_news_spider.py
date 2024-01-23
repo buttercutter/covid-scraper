@@ -61,7 +61,7 @@ elif search_country == 'malaysia':
     allowed_domain_names = ["nst.com.my", "thestar.com.my", "bernama.com/en/", "malaysianow.com", "malaymail.com", "freemalaysiatoday.com", "malaysiakini.com"]
 
 elif search_country == 'vietnam':
-    allowed_domain_names = ["vnanet.vn/en/", "en.vietnamplus.vn"]
+    allowed_domain_names = ["vnanet.vn/en/", "vietnamnews.vn", "en.vietnamplus.vn"]
 
 # not accessible due to DNS lookup error or the webpage had since migrated to other subdomains
 inaccessible_subdomain_names = ["olympianbuilder.straitstimes.com", "ststaff.straitstimes.com", "media.straitstimes.com",
@@ -121,6 +121,9 @@ irrelevant_subdomain_names = ["channelnewsasia.com/watch/", "cnaluxury.channelne
                               "philstar.com/entertainment",
                               "news.vnanet.vn/en/",  # only works for paid login subscription
                               "vnanet.vn/en/anh/vna-photos", "seagames-en.vnanet.vn",
+                              "vietnamnews.vn/Economy", "vietnamnews.vn/Life - Style", "vietnamnews.vn/life-style",
+                              "vietnamnews.vn/Sports", "vietnamnews.vn/economy", "vietnamnews.vn/travel",
+                              "special.vietnamplus.vn",  # articles inside this subdomain is very general, does not contain any date
                               "mb.com.ph/our-company"]
 
 # articles that are 404 broken links, or published with only a title, and without any body content and publish date
@@ -260,7 +263,9 @@ class CovidNewsSpider(scrapy.Spider):
 
         elif search_country == 'vietnam':
             start_urls = [
-                'https://vnanet.vn/en/'
+                'https://vnanet.vn/en/',
+                'https://vietnamnews.vn',
+                'https://en.vietnamplus.vn'
             ]
 
     # settings for Javacript handling
@@ -647,6 +652,12 @@ class CovidNewsSpider(scrapy.Spider):
         elif 'vnanet.vn/en/' in response.url:
             more_links = response.css('a::attr(href)').getall()
 
+        elif 'vietnamnews.vn' in response.url:
+            more_links = response.css('a::attr(href)').getall()
+
+        elif 'en.vietnamplus.vn' in response.url:
+            more_links = response.css('a::attr(href)').getall()
+
         elif 'archive.org' in response.url:
             more_links = response.css('a.format-summary:contains("FULL TEXT")::attr(href)').getall()
 
@@ -1027,6 +1038,46 @@ class CovidNewsSpider(scrapy.Spider):
                 div.divTextView.newsListForm div.flex-container div.flex-item.meta-data-port a'
             )
 
+        elif 'vietnamnews.vn' in response.url:
+            return response.css(
+                'html body div.site-content div.l-grid div.l-content div#spotlight_slick.spotlight-slick.slick-initialized.slick-slider div.slick-list.draggable div.slick-track div.d-flex.slick-slide div.slick-meta h2 a, \
+                html body div.site-content div.l-grid div.l-content div.row.feature div.col article.story.story--focus div.story__meta h2 a, \
+                html body div.site-content div.l-grid div.l-content div.row.feature div.col article.story h2 a, \
+                html body div.site-content div.l-grid div.l-content div.highlight section.zone.zone--highlight div.row.zone__content article.col.story h2 a, \
+                html body div.site-content div.l-grid div.l-content section.zone.zone--cate.has-thumb div.zone__content div.focus-col article.story h2 a, \
+                html body div.site-content div.l-grid div.l-content section.zone.zone--cate.has-thumb div.zone__content article.story.story--focus h2 a, \
+                html body div.site-content div.l-grid div.l-content section.zone.zone--cate.has-thumb div.zone__content div.focus-col article.story h2 a, \
+                html body div.site-content div.l-grid div.sidebar section.aside.aside--latest div.tab-content div#latest.tab-pane.fade.show.active article.story h2 a, \
+                html body div.site-content div.l-grid div.sidebar div.event ul.event-list li a, \
+                html body div.site-content div.l-grid div.l-content section.zone.zone--column div.zone__content div.row article.col.story h2 a, \
+                html body div.site-content div.l-grid div.l-content section.zone.zone--cate.has-text div.zone__content article.story.story--focus h2 a, \
+                html body div.site-content div.l-grid div.l-content section.zone.zone--cate.has-text div.zone__content div.row article.col.story h2 a, \
+                html body div.site-content div.area.area--dark div.l-grid section.zone.zone--opinion div.zone__content div.row div.col article.story div.story__meta h2 a, \
+                html body div.site-content div.l-grid.cate-col div.row div.col section.zone div.zone__content article.story h2 a, \
+                html body div.site-content div.l-grid div.l-content.category section.zone.zone--cate.has-thumb div.zone__content article.story.story--focus h2 a, \
+                html body div.site-content div.l-grid div.l-content.category section.zone.zone--cate.has-thumb div.zone__content div.focus-col article.story h2 a, \
+                html body div.site-content div.l-grid div.l-content.category div.d-flex div.timeline article.story h2 a'
+            )
+
+        elif 'en.vietnamplus.vn' in response.url:
+            return response.css(
+                'section.latest-news div.clearfix article.story--text h2 a, \
+                div.spotlight article.story.story--horizontal h2 a, \
+                div.highlight div.l-content div.focus article.story h2 a, \
+                div.highlight div.l-content div.feature.cols-3 article.story h2 a, \
+                div.l-content section.zone--timeline div.clearfix article.story h2 a, \
+                div.clearfix article.story.story--horizontal h2 a, \
+                div.clearfix ul.story--list li a, \
+                div.zone--region__list ul.story--list li a, \
+                div.clearfix article.story.story--large h2 a, \
+                div.clearfix div.right article.story.story--horizontal h2 a, \
+                div.l-content section.zone--cate div.feature.cols-3 article.story h2 a, \
+                div#wrapper-popular section.zone.zone--popular div.clearfix article.story h2 a, \
+                div.clearfix article.story.story--split h2 a, \
+                div.clearfix article.story--large h2 a, \
+                div.clearfix ul li article.story h2 a'
+            )
+
         elif 'archive.org' in response.url:
             if 'https://archive.org/details/' in response.url:
                 # Extract article (only the FULL_TEXT download page) from the summary page
@@ -1198,6 +1249,16 @@ class CovidNewsSpider(scrapy.Spider):
             link = article.css('a::attr(href)').get()
 
         elif 'vnanet.vn/en/' in response.url:
+            title = article.css('a ::text').get()
+            date = article.css('div.article__date-published').get()
+            link = article.css('a::attr(href)').get()
+
+        elif 'vietnamnews.vn' in response.url:
+            title = article.css('a ::text').get()
+            date = article.css('div.article__date-published').get()
+            link = article.css('a::attr(href)').get()
+
+        elif 'en.vietnamplus.vn' in response.url:
             title = article.css('a ::text').get()
             date = article.css('div.article__date-published').get()
             link = article.css('a::attr(href)').get()
@@ -1399,6 +1460,8 @@ class CovidNewsSpider(scrapy.Spider):
             "— Bernama",
             "-- Bernama",
             "- Xinhua",
+            "— VNS", "VNS Copyrights 2012",
+            "-VNA", "./. VNA", "./.  VNA", "./.   VNA",
             "- The Straits Times/ANN",
             "- The Nation Thailand/ANN",
             "— The Nation Thailand/ANN",
@@ -1819,11 +1882,23 @@ class CovidNewsSpider(scrapy.Spider):
                 if date is None:
                     print("date is None for vnanet")
 
-            elif 'en.vietnamplus.vn' in response.url:
+            elif 'vietnamnews.vn' in response.url:
                 body = response.css('p ::text').getall()
 
                 if title is None:
-                    title = response.css('div#body-row.row.oku_font div.col.pt-3 div.container-fluid.px-0 div.row div.col-12.col-sm-12.col-md-12.col-lg-8 h1.h2::text').get()
+                    title = response.css('div.detail__header h1.headline::text').get()
+
+                date = response.css('div.datetime::text').get()
+
+                if date is None:
+                    print("date is None for vietnamnews.vn")
+
+            elif 'en.vietnamplus.vn' in response.url:
+                body = response.css('p ::text').getall() or \
+                       response.css('div.content.article-body ::text').getall()
+
+                if title is None:
+                    title = response.css('div.details__header h1.details__headline.cms-title::text').get()
 
                 date = response.css('time::text').get()
 
@@ -1896,6 +1971,7 @@ class CovidNewsSpider(scrapy.Spider):
             # This is an early sign that the current page after url redirection
             # is pointing to a new page containing multiple articles
             if url_had_redirected and self.parse_articles(response) is not None:
+                if domain_name != "vietnamnews.vn" and domain_name != "en.vietnamplus.vn":  # these 2 domains have articles list even in the actual article
                     print(f"going back to parse() for {link}")
                     yield self.parse(response)
 
