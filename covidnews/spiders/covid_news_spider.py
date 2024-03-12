@@ -124,6 +124,7 @@ irrelevant_subdomain_names = ["channelnewsasia.com/watch/", "cnaluxury.channelne
                               "vietnamnews.vn/Economy", "vietnamnews.vn/Life - Style", "vietnamnews.vn/life-style",
                               "vietnamnews.vn/Sports", "vietnamnews.vn/economy", "vietnamnews.vn/travel",
                               "special.vietnamplus.vn",  # articles inside this subdomain is very general, does not contain any date
+                              "vietnamplus.vn/region/",  # international region subdomain section
                               "mb.com.ph/our-company"]
 
 # articles that are 404 broken links, or published with only a title, and without any body content and publish date
@@ -157,6 +158,8 @@ incomplete_articles = ["https://www.straitstimes.com/singapore/education/ask-san
                        "https://www.thestar.com.my/news/nation/2023/09/06/wisma-pertahanan-names-new-armed-forces-chief",
                        "https://www.thestar.com.my/aseanplus/aseanplus-news/2022/04/22/75-year-old-lost-us1-million-in-china-officials-impersonation-scam",
                        "https://www.thestar.com.my/2003/07/27/one-big-shopping-spree--for-carnival",
+                       "https://vnanet.vn/Frontend/TrackingView.aspx?IID=7155206",
+                       "https://vnanet.vn/Frontend/TrackingView.aspx?IID=7167889",
                        "https://mb.com.ph/rss/articles"
                         ]
 
@@ -1365,6 +1368,7 @@ class CovidNewsSpider(scrapy.Spider):
     def remove_footnote(self, text, window_size=3, previous_search_footnote_phrase=None):
         # cleans up some strange character
         text = text.replace('\xa0', ' ')
+        text = text.replace('<200b>', ' ')
 
         # splits into multiple tokens using newline characters
         lines = text.split('\n')
@@ -1394,6 +1398,7 @@ class CovidNewsSpider(scrapy.Spider):
             "Editorial note:",
             "Correction note:",
             "Clarification note:",
+            "Terence Fernandez is a",
             "Brian Martin is the managing editor of The Star",
             "The article was edited",
             "This story was produced",
@@ -1419,10 +1424,11 @@ class CovidNewsSpider(scrapy.Spider):
             "Edited by",  # Comment this out for manual scraping due to truncated words for "accrEdited by"
             "Produced by:",
             "Brought to you by",
-            "WITH REPORT FROM",
-            "—With a report from",
-            "—WITH REPORTS FROM",
-            "—REPORTS FROM",
+            "WITH REPORT FROM", "—REPORTS FROM",
+            "—With a report from", "—WITH REPORTS FROM",
+            "— By YEE XIANG YUN", "— By M. SIVANANTHA SHARMA", "— By FARID WAHAB", "— By ANDY CHUA",
+            "— By REBECCA RAJAENDRAM",
+            "— By GRACE CHEN", "— By PAUL GABRIEL", "— By JEREMY TAN", "— By IMRAN HILMY", "— By SANDHYA MENON",
             "—Jerome",
             "–Jaime Laude",
             "—Julie",
@@ -1450,8 +1456,10 @@ class CovidNewsSpider(scrapy.Spider):
             "- AFP",
             "– AFP",
             "— AFP",
+            "– dpa",
             "- Reuters",
             "— Reuters",
+            "– Reuters",
             "- Bloomberg",
             "– Bloomberg",
             "— Bloomberg",
@@ -1461,8 +1469,9 @@ class CovidNewsSpider(scrapy.Spider):
             "-- Bernama",
             "- Xinhua",
             "— VNS", "VNS Copyrights 2012",
-            "-VNA", "./. VNA", "./.  VNA", "./.   VNA",
+            "-VNA", "./. VNA", "./.  VNA", "./.   VNA", "./.    VNA",
             "- The Straits Times/ANN",
+            "– The Straits Times (Singapore)/Asia News Network",
             "- The Nation Thailand/ANN",
             "— The Nation Thailand/ANN",
             "- Philippines Daily Inquirer/ANN",
@@ -1473,6 +1482,8 @@ class CovidNewsSpider(scrapy.Spider):
             "– Thomson Reuters Foundation",
             "– Los Angeles Times/Tribune News Service",
             "– Hartford Courant/Tribune News Service",
+            "– Bangkok Post, Thailand/Tribune News Service",
+            "– Khaleej Times, Dubai/Tribune News Service",
             "MCI (P)",
             "[ac]",
             "Click here for more",
@@ -1894,8 +1905,7 @@ class CovidNewsSpider(scrapy.Spider):
                     print("date is None for vietnamnews.vn")
 
             elif 'en.vietnamplus.vn' in response.url:
-                body = response.css('p ::text').getall() or \
-                       response.css('div.content.article-body ::text').getall()
+                body = response.xpath('//p//text() | //div[contains(@class, "content") and contains(@class, "article-body")]//text()[not(ancestor::div[contains(@class, "article-photo")])]').getall()
 
                 if title is None:
                     title = response.css('div.details__header h1.details__headline.cms-title::text').get()
