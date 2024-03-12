@@ -63,6 +63,9 @@ elif search_country == 'malaysia':
 elif search_country == 'vietnam':
     allowed_domain_names = ["vnanet.vn/en/", "vietnamnews.vn", "en.vietnamplus.vn"]
 
+elif search_country == 'thailand':
+    allowed_domain_names = ["bangkokpost.com"]
+
 # not accessible due to DNS lookup error or the webpage had since migrated to other subdomains
 inaccessible_subdomain_names = ["olympianbuilder.straitstimes.com", "ststaff.straitstimes.com", "media.straitstimes.com",
                                 "buildsg2065.straitstimes.com", "origin-stcommunities.straitstimes.com",
@@ -113,6 +116,7 @@ irrelevant_subdomain_names = ["channelnewsasia.com/watch/", "cnaluxury.channelne
                               "thestar.com.my/news/world", "thestar.com.my/world/world",
                               "thestar.com.my/tag/forex", "thestar.com.my/tag/banking", "thestar.com.my/tag/cryptocurrency",
                               "thestar.com.my/tag/energy", "thestar.com.my/tag/smartphones",
+                              "bangkokpost.com/video", "search.bangkokpost.com",
                               "bernama.com/en/videos/", "bernama.com/tv/", "bernama.com/radio/", "images.bernama.com",
                               "entertainment.inquirer.net", "business.inquirer.net", "opinion.inquirer.net",
                               "sports.inquirer.net", "technology.inquirer.net", "usa.inquirer.net",
@@ -269,6 +273,11 @@ class CovidNewsSpider(scrapy.Spider):
                 'https://vnanet.vn/en/',
                 'https://vietnamnews.vn',
                 'https://en.vietnamplus.vn'
+            ]
+
+        elif search_country == 'thailand':
+            start_urls = [
+                'https://www.bangkokpost.com'
             ]
 
     # settings for Javacript handling
@@ -659,6 +668,9 @@ class CovidNewsSpider(scrapy.Spider):
             more_links = response.css('a::attr(href)').getall()
 
         elif 'en.vietnamplus.vn' in response.url:
+            more_links = response.css('a::attr(href)').getall()
+
+        elif 'bangkokpost.com' in response.url:
             more_links = response.css('a::attr(href)').getall()
 
         elif 'archive.org' in response.url:
@@ -1081,6 +1093,34 @@ class CovidNewsSpider(scrapy.Spider):
                 div.clearfix ul li article.story h2 a'
             )
 
+        elif 'bangkokpost.com' in response.url:
+            return response.css(
+                'body > div.divbody-container > div.divsection-container > section.section-highlight > div > div.row.no-gutters-sm > div.col-15.col-lg-11.ctrl-height > div.divnews-highlight > div > div.owl-stage-outer.owl-height > div > div.owl-item.active > div > div > figure > figcaption > h3 > a, \
+                body > div.divbody-container > div.divsection-container > section.section-highlight > div > div.row.no-gutters-sm > div.col-15.col-lg-11.ctrl-height > div.news--slide222 > div > div.owl-stage-outer > div > div > div > div > h3 > a, \
+                body > div.divbody-container > div.divsection-container > section.section-highlight > div > div.row.no-gutters-sm > div.col-15.col-lg-4 > div > div.div-timeline--list > div > h3 > a, \
+                body > div.divbody-container > div.divsection-container > section.section-highlight > div > div.row.no-gutters-sm > div.col-15.col-lg-4 > div > div.div-timeline--list > ul > li > h3 > a, \
+                body > div.divbody-container > div.divsection-container > section > div > div.news--slide > div > div.owl-stage-outer > div > div > div > div > h3 > a, \
+                div.section-news > div.container > #news-tabContent > div > div > div > div.col-15.col-lg-9 > div > figure > figcaption > h3 > a, \
+                div.section-news > div.container > #news-tabContent > div > div > div > div.col-15.col-lg-6 > div > ul > li > h3 > a, \
+                body > div.divbody-container > div.divsection-container > section > div > div > div.col-15.col-lg-10 > div.row > div > div > h3 > a, \
+                body > div.divbody-container > div.divsection-container > section > div > div > div.col-15.col-lg-10 > div.row > div > div > ul > li > h3 > a, \
+                body > div.divbody-container > div.divsection-container > section.section-leaning > div > div.boxnews--container.learning--slide > div > div.owl-stage-outer > div > div > div > div > a, \
+                body > div.divbody-container > div.divsection-container > section > div > div.topics--slide > div > div.owl-stage-outer > div > div > div > div > div.col-15.col-lg-9.col-xl-50 > div > a, \
+                body > div.divbody-container > div.divsection-container > section > div > div.topics--slide > div > div.owl-stage-outer > div > div > div > div > div.col-15.col-lg-6.col-xl-50 > div > ul > li > h3 > a, \
+                body > div.divbody-container > div.divsection-container > section.section-highlight.news--highlight > div > div > div.col-15.col-lg-10 > div > div > div.owl-stage-outer > div > div.owl-item.active > div > div > figure > figcaption > h3 > a, \
+                body > div.divbody-container > div.divsection-container > section.section-highlight.news--highlight > div > div > div.col-15.col-lg-5 > div > div.div-mostview--list > ul > li > h3 > a, \
+                div.news--slide > div#recommended > div.owl-stage-outer > div > div > div > div > h3 > a, \
+                div#alphabet-a > div.mt-5 > div.news--slide > div > div.owl-stage-outer > div > div > div > div > h3 > a, \
+                body > div.divbody-container > div.divsection-container > section > div > div > div > div.div-section--main.mb-5 > div.news--list.border-bottom.mb-4.pb-3 > h3 > a, \
+                body > div.divbody-container > div.divsection-container > section > div > div > div > div.div-section--main.mb-5 > div.news--list-noimg > ul > li > h3 > a, \
+                #internal_trc_6056 > div.videoCube.trc_spotlight_item.origin-default.thumbnail_top.textItem.videoCube_1_child.trc-first-recommendation.trc-spotlight-first-recommendation.trc_excludable > a, \
+                body > div.divbody-container > div.divsection-container > section.section-highlight.news--highlight > div > div > div.col-15.boxnews--notshow-mobi.mt-md-5 > div > div > div > h3 > a, \
+                body > div.divbody-container > div.divsection-container > section > div > div.row.page--link > div > div > div > h3 > a, \
+                body > div.divbody-container > div.divsection-container > section > div > div.subsect--latest > div.row.page--link > div > div > div > h3 > a, \
+                body > div.divbody-container.life-container > div.divsection-container > section > div > div.subsect--latest.divlife--latest > div.row.page--link > div > div > div > h3 > a, \
+                div#content > div.content-right > ul > div > h3 > a'
+            )
+
         elif 'archive.org' in response.url:
             if 'https://archive.org/details/' in response.url:
                 # Extract article (only the FULL_TEXT download page) from the summary page
@@ -1262,6 +1302,11 @@ class CovidNewsSpider(scrapy.Spider):
             link = article.css('a::attr(href)').get()
 
         elif 'en.vietnamplus.vn' in response.url:
+            title = article.css('a ::text').get()
+            date = article.css('div.article__date-published').get()
+            link = article.css('a::attr(href)').get()
+
+        elif 'bangkokpost.com' in response.url:
             title = article.css('a ::text').get()
             date = article.css('div.article__date-published').get()
             link = article.css('a::attr(href)').get()
@@ -1486,6 +1531,7 @@ class CovidNewsSpider(scrapy.Spider):
             "– Khaleej Times, Dubai/Tribune News Service",
             "MCI (P)",
             "[ac]",
+            "Click below to watch",
             "Click here for more",
             "Click here to read more",
             "View More",
@@ -1511,6 +1557,7 @@ class CovidNewsSpider(scrapy.Spider):
             "TOPIC:",
             "Reference:",
             "Source:",
+            "Visit https://spoti.fi",
             "catch the olympics games",
             "cna women is a section on cna",
             "Write to us at",
@@ -1915,6 +1962,24 @@ class CovidNewsSpider(scrapy.Spider):
                 if date is None:
                     print("date is None for vietnamplus")
 
+            elif 'bangkokpost.com' in response.url:
+                body = response.xpath('//p[not(contains(@class, "Footnote")) and not(contains(@class, "footnote")) and not(ancestor::div[@class="footer"]) and not(ancestor::div[@class="article-info--col"]) and not(ancestor::div[@class="article--columnist-history"]) and not(ancestor::div[@class="articlePhotoCenter"])]//text()').getall()
+
+                if title is None:
+                    title = response.css('div.article-headline > h1::text').get()
+
+                original_date_str = response.css('div.article-info--col:nth-child(1) > p:nth-child(1)::text').get() or \
+                                    response.css('div.article-news > article > div.article-info.has-columnnist > div:nth-child(1) > div > div:nth-child(2) > p::text').get()
+
+                # Original date string
+                # original_date_str = "PUBLISHED : 12 Mar 2024 at 12:42"
+
+                # Preprocess the string to remove unnecessary parts
+                date = original_date_str.split("PUBLISHED : ")[-1].split(" at ")[0].strip()
+
+                if date is None:
+                    print("date is None for bangkokpost")
+
             elif 'archive.org' in response.url:
                 body = response.css('div.article p::text').getall() or \
                        response.css('div.text-long').getall() or \
@@ -2055,6 +2120,10 @@ class CovidNewsSpider(scrapy.Spider):
 
             elif search_country == 'vietnam':
                 # https://en.wikipedia.org/wiki/Timeline_of_the_COVID-19_pandemic_in_Vietnam
+                date_is_within_covid_period = ((published_year >= 2020) and (published_year <= 2022))
+
+            elif search_country == 'thailand':
+                # https://en.wikipedia.org/wiki/Timeline_of_the_COVID-19_pandemic_in_Thailand
                 date_is_within_covid_period = ((published_year >= 2020) and (published_year <= 2022))
 
         print(f"date = {date}, and published_year = {published_year}, and date_is_within_covid_period = {date_is_within_covid_period}")
