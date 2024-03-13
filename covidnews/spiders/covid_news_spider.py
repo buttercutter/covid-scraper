@@ -116,7 +116,8 @@ irrelevant_subdomain_names = ["channelnewsasia.com/watch/", "cnaluxury.channelne
                               "thestar.com.my/news/world", "thestar.com.my/world/world",
                               "thestar.com.my/tag/forex", "thestar.com.my/tag/banking", "thestar.com.my/tag/cryptocurrency",
                               "thestar.com.my/tag/energy", "thestar.com.my/tag/smartphones",
-                              "bangkokpost.com/video", "search.bangkokpost.com",
+                              "bangkokpost.com/video", "bangkokpost.com/photo", "bangkokpost.com/business",
+                              "search.bangkokpost.com",
                               "bernama.com/en/videos/", "bernama.com/tv/", "bernama.com/radio/", "images.bernama.com",
                               "entertainment.inquirer.net", "business.inquirer.net", "opinion.inquirer.net",
                               "sports.inquirer.net", "technology.inquirer.net", "usa.inquirer.net",
@@ -277,6 +278,8 @@ class CovidNewsSpider(scrapy.Spider):
 
         elif search_country == 'thailand':
             start_urls = [
+                #'https://search.bangkokpost.com/search/result_advanced?q=covid&searchedField=all&category=all&xNewsSection=&xChannel=&xColumn=covid&author=&xDate2=past60Days&xDate=&xDateSearchRadio=range&xDateFrom=01%2F01%2F2020&xDateTo=01%2F01%2F2023',
+                #'https://search.bangkokpost.com/search/result_advanced?q=covid&category=archive&refinementFilter=&sort=newest&publishedDate=%5B2020-01-01T00%3A00%3A00Z%3B2022-12-31T23%3A59%3A59Z%5D&searchedField=all&xNewsSection=&xChannel=&xColumn=&author=',
                 'https://www.bangkokpost.com'
             ]
 
@@ -763,7 +766,7 @@ class CovidNewsSpider(scrapy.Spider):
         else:
             articles = []
 
-        print(f"len(articles) = {len(articles)}")
+        print(f"Found {len(articles)} articles")
 
         if TEST_SPECIFIC and response.url in self.start_urls:
             yield from self.parse_article(response.css('*'), response)
@@ -832,7 +835,6 @@ class CovidNewsSpider(scrapy.Spider):
                         headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
                     )
 
-        print(f"Found {len(articles)} articles")
 
     def parse_articles(self, response):
         print("inside parse_articles(), response.url = ", response.url)
@@ -1110,14 +1112,26 @@ class CovidNewsSpider(scrapy.Spider):
                 body > div.divbody-container > div.divsection-container > section.section-highlight.news--highlight > div > div > div.col-15.col-lg-10 > div > div > div.owl-stage-outer > div > div.owl-item.active > div > div > figure > figcaption > h3 > a, \
                 body > div.divbody-container > div.divsection-container > section.section-highlight.news--highlight > div > div > div.col-15.col-lg-5 > div > div.div-mostview--list > ul > li > h3 > a, \
                 div.news--slide > div#recommended > div.owl-stage-outer > div > div > div > div > h3 > a, \
+                body > div > div.divsection-container > section > section.section-page > div > div.row.topics-news > div > div > div > h3 > a, \
+                div > div > div > div.col-15.col-lg-6 > div > ul > li > h3 > a, \
+                body > div.divbody-container > div.divsection-container > section > div.container > div > div.col-15.col-lg-5 > div.articl--aside > div.div-recommended.mb-30 > div.div-recommended--list > ul > li > h3 > a, \
+                body > div.divbody-container > div.divsection-container > section > div.container > div > div.col-15.col-lg-5 > div.articl--aside > div.box-topic--bg > div.row > div > div > ul > li > h3 > a, \
+                body > section.section-learning > section > div.div-learning-listdetail > div > div > div.col-15.col-md-15.col-lg-10 > div.row.lea-commu > div > article > div > div > h3 > a, \
+                li#primary-slider-slide01 > div > a, \
+                body > section.section-learning > section > div > div > div.col-15.col-md-15.col-lg-10 > div.section-learning--article > div > div > article > div > div > h3 > a, \
+                body > div > div.divsection-container > section.section-page > div > div > div > div > div > h3 > a, \
+                #trending-widget > div > div.news--slide > div > div > div > div > a, \
+                div > div.videoCube.trc_spotlight_item.origin-default.thumbnail_top.textItem.videoCube_2_child.trc_excludable > a, \
+                body > div > div.divsection-container > section.section-page > div > div > div > div.owl-stage-outer > div > div > div > div > div.col-15.col-lg-9.col-xl-50 > div > a, \
                 div#alphabet-a > div.mt-5 > div.news--slide > div > div.owl-stage-outer > div > div > div > div > h3 > a, \
                 body > div.divbody-container > div.divsection-container > section > div > div > div > div.div-section--main.mb-5 > div.news--list.border-bottom.mb-4.pb-3 > h3 > a, \
                 body > div.divbody-container > div.divsection-container > section > div > div > div > div.div-section--main.mb-5 > div.news--list-noimg > ul > li > h3 > a, \
-                #internal_trc_6056 > div.videoCube.trc_spotlight_item.origin-default.thumbnail_top.textItem.videoCube_1_child.trc-first-recommendation.trc-spotlight-first-recommendation.trc_excludable > a, \
+                div > div.videoCube.trc_spotlight_item.origin-default.thumbnail_top.textItem.videoCube_1_child.trc-first-recommendation.trc-spotlight-first-recommendation.trc_excludable > a, \
                 body > div.divbody-container > div.divsection-container > section.section-highlight.news--highlight > div > div > div.col-15.boxnews--notshow-mobi.mt-md-5 > div > div > div > h3 > a, \
                 body > div.divbody-container > div.divsection-container > section > div > div.row.page--link > div > div > div > h3 > a, \
                 body > div.divbody-container > div.divsection-container > section > div > div.subsect--latest > div.row.page--link > div > div > div > h3 > a, \
                 body > div.divbody-container.life-container > div.divsection-container > section > div > div.subsect--latest.divlife--latest > div.row.page--link > div > div > div > h3 > a, \
+                div#content > div.content-right > ul > li > div > h3 > a, \
                 div#content > div.content-right > ul > div > h3 > a'
             )
 
@@ -1963,22 +1977,26 @@ class CovidNewsSpider(scrapy.Spider):
                     print("date is None for vietnamplus")
 
             elif 'bangkokpost.com' in response.url:
+                print("get_article_content for bangkokpost")
+
                 body = response.xpath('//p[not(contains(@class, "Footnote")) and not(contains(@class, "footnote")) and not(ancestor::div[@class="footer"]) and not(ancestor::div[@class="article-info--col"]) and not(ancestor::div[@class="article--columnist-history"]) and not(ancestor::div[@class="articlePhotoCenter"])]//text()').getall()
 
                 if title is None:
                     title = response.css('div.article-headline > h1::text').get()
 
                 original_date_str = response.css('div.article-info--col:nth-child(1) > p:nth-child(1)::text').get() or \
+                                    response.css('div.article-info > div.row > div > p::text').get() or \
+                                    response.css('div.postbag-info-date > a#calendar > span::text').get() or \
                                     response.css('div.article-news > article > div.article-info.has-columnnist > div:nth-child(1) > div > div:nth-child(2) > p::text').get()
+
+                if original_date_str is None:
+                    print("original_date_str is None for bangkokpost")
 
                 # Original date string
                 # original_date_str = "PUBLISHED : 12 Mar 2024 at 12:42"
 
                 # Preprocess the string to remove unnecessary parts
-                date = original_date_str.split("PUBLISHED : ")[-1].split(" at ")[0].strip()
-
-                if date is None:
-                    print("date is None for bangkokpost")
+                date = original_date_str.split("PUBLISHED :")[-1].split("published :")[-1].split(" at ")[0].strip()
 
             elif 'archive.org' in response.url:
                 body = response.css('div.article p::text').getall() or \
@@ -2045,8 +2063,9 @@ class CovidNewsSpider(scrapy.Spider):
 
             # This is an early sign that the current page after url redirection
             # is pointing to a new page containing multiple articles
-            if url_had_redirected and self.parse_articles(response) is not None:
-                if domain_name != "vietnamnews.vn" and domain_name != "en.vietnamplus.vn":  # these 2 domains have articles list even in the actual article
+            if url_had_redirected and self.parse_articles(response) is not None and \
+                    (domain_name != "vietnamnews.vn" and domain_name != "en.vietnamplus.vn" and domain_name != "bangkokpost.com"):
+                # these domains have articles list even in the actual article
                     print(f"going back to parse() for {link}")
                     yield self.parse(response)
 
