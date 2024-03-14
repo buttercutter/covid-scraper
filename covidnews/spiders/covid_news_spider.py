@@ -117,7 +117,7 @@ irrelevant_subdomain_names = ["channelnewsasia.com/watch/", "cnaluxury.channelne
                               "thestar.com.my/tag/forex", "thestar.com.my/tag/banking", "thestar.com.my/tag/cryptocurrency",
                               "thestar.com.my/tag/energy", "thestar.com.my/tag/smartphones",
                               "bangkokpost.com/video", "bangkokpost.com/photo", "bangkokpost.com/business",
-                              "search.bangkokpost.com",
+                              "bangkokpost.com/learning/course/",
                               "bernama.com/en/videos/", "bernama.com/tv/", "bernama.com/radio/", "images.bernama.com",
                               "entertainment.inquirer.net", "business.inquirer.net", "opinion.inquirer.net",
                               "sports.inquirer.net", "technology.inquirer.net", "usa.inquirer.net",
@@ -131,6 +131,9 @@ irrelevant_subdomain_names = ["channelnewsasia.com/watch/", "cnaluxury.channelne
                               "special.vietnamplus.vn",  # articles inside this subdomain is very general, does not contain any date
                               "vietnamplus.vn/region/",  # international region subdomain section
                               "mb.com.ph/our-company"]
+
+if SEARCH_ENTIRE_WEBSITE:
+    irrelevant_subdomain_names += ["search.bangkokpost.com"]
 
 # articles that are 404 broken links, or published with only a title, and without any body content and publish date
 incomplete_articles = ["https://www.straitstimes.com/singapore/education/ask-sandra-jc-mergers",
@@ -179,6 +182,10 @@ class CovidNewsSpider(scrapy.Spider):
 
     if TEST_SPECIFIC:
         start_urls = [
+                      "https://www.bangkokpost.com/thailand/pr/2331868/manufacturing-expo-2022-kicks-off-the-most-comprehensive-exhibition-for-the-manufacturing-and-supporting-industries-bringing-in-ground-breaking-machinery-and-technologies-across-9-shows-in-one-mega-event-as-well-as-30-seminars-aimed-to-deep-dive-into-the-industry",  # filename too long
+                      "https://www.bangkokpost.com/thailand/pr/2121403/central-world-joins-hands-with-king-chulalongkorn-memorial-hospital-of-the-thai-red-cross-society-to-open-a-vaccination-centre-to-help-authorities-fight-the-pandemic-reinforcing-central-pattanas-position-as-the-private-sectors-leader-in-mass-vaccinations",  # filename too long
+                      "https://www.bangkokpost.com/thailand/pr/2123287/central-pattana-joins-hands-with-partners-in-national-mission-reaffirming-central-shopping-centers-as-the-model-of-safe-vaccination-centres-nationwide-launching-im-vaccinated-campaign-in-23-central-shopping-centres",  # filename too long
+                      "https://www.bangkokpost.com/thailand/pr/2143763/frasers-property-industrial-thailand-and-strategic-partner-mitsui-fudosan-asia-thailand-celebrates-the-start-of-the-first-warehouse-construction-at-bang-na-2-logistics-park-in-the-eastern-economic-corridor",  # filename too long
                       "https://www.thestar.com.my/aseanplus/aseanplus-news/2022/03/16/food-aid-delivered-to-54393-homes-since-onset-of-second-covid-wave-in-brunei",  # empty article
                       "https://www.thestar.com.my/tech/tech-news/2022/11/08/amazon-sets-up-warehouse-in-eastern-china-for-faster-overseas-ecommerce-signalling-confidence-in-consumer-spending",  # javacript rendering is wrong
                       "https://www.thestar.com.my/news/regional/2020/05/17/south-east-asia---caught-in-the-middle-of-a-new-us-china-cold-war",  # javacript rendering is wrong
@@ -277,11 +284,15 @@ class CovidNewsSpider(scrapy.Spider):
             ]
 
         elif search_country == 'thailand':
-            start_urls = [
-                #'https://search.bangkokpost.com/search/result_advanced?q=covid&searchedField=all&category=all&xNewsSection=&xChannel=&xColumn=covid&author=&xDate2=past60Days&xDate=&xDateSearchRadio=range&xDateFrom=01%2F01%2F2020&xDateTo=01%2F01%2F2023',
-                #'https://search.bangkokpost.com/search/result_advanced?q=covid&category=archive&refinementFilter=&sort=newest&publishedDate=%5B2020-01-01T00%3A00%3A00Z%3B2022-12-31T23%3A59%3A59Z%5D&searchedField=all&xNewsSection=&xChannel=&xColumn=&author=',
-                'https://www.bangkokpost.com'
-            ]
+            if SEARCH_ENTIRE_WEBSITE:
+                start_urls = [
+                    'https://www.bangkokpost.com'
+                ]
+            else:
+                start_urls = [
+                    #'https://search.bangkokpost.com/search/result_advanced?q=covid&searchedField=all&category=all&xNewsSection=&xChannel=&xColumn=covid&author=&xDate2=past60Days&xDate=&xDateSearchRadio=range&xDateFrom=01%2F01%2F2020&xDateTo=01%2F01%2F2023',
+                    'https://search.bangkokpost.com/search/result_advanced?q=covid&category=archive&refinementFilter=&sort=newest&publishedDate=%5B2020-01-01T00%3A00%3A00Z%3B2022-12-31T23%3A59%3A59Z%5D&searchedField=all&xNewsSection=&xChannel=&xColumn=&author='
+                ]
 
     # settings for Javacript handling
     if USE_SPLASH:  # scrapy-splash
@@ -674,7 +685,10 @@ class CovidNewsSpider(scrapy.Spider):
             more_links = response.css('a::attr(href)').getall()
 
         elif 'bangkokpost.com' in response.url:
-            more_links = response.css('a::attr(href)').getall()
+            if SEARCH_ENTIRE_WEBSITE:
+                more_links = response.css('a::attr(href)').getall()
+            else:
+                more_links = response.css('p.page-Navigation > a::attr(href)').getall()
 
         elif 'archive.org' in response.url:
             more_links = response.css('a.format-summary:contains("FULL TEXT")::attr(href)').getall()
@@ -1123,7 +1137,7 @@ class CovidNewsSpider(scrapy.Spider):
                 #trending-widget > div > div.news--slide > div > div > div > div > a, \
                 div > div.videoCube.trc_spotlight_item.origin-default.thumbnail_top.textItem.videoCube_2_child.trc_excludable > a, \
                 body > div > div.divsection-container > section.section-page > div > div > div > div.owl-stage-outer > div > div > div > div > div.col-15.col-lg-9.col-xl-50 > div > a, \
-                div#alphabet-a > div.mt-5 > div.news--slide > div > div.owl-stage-outer > div > div > div > div > h3 > a, \
+                #alphabet-a > div.mt-5 > div.news--slide > div > div.owl-stage-outer > div > div > div > div > h3 > a, \
                 body > div.divbody-container > div.divsection-container > section > div > div > div > div.div-section--main.mb-5 > div.news--list.border-bottom.mb-4.pb-3 > h3 > a, \
                 body > div.divbody-container > div.divsection-container > section > div > div > div > div.div-section--main.mb-5 > div.news--list-noimg > ul > li > h3 > a, \
                 div > div.videoCube.trc_spotlight_item.origin-default.thumbnail_top.textItem.videoCube_1_child.trc-first-recommendation.trc-spotlight-first-recommendation.trc_excludable > a, \
@@ -1131,8 +1145,8 @@ class CovidNewsSpider(scrapy.Spider):
                 body > div.divbody-container > div.divsection-container > section > div > div.row.page--link > div > div > div > h3 > a, \
                 body > div.divbody-container > div.divsection-container > section > div > div.subsect--latest > div.row.page--link > div > div > div > h3 > a, \
                 body > div.divbody-container.life-container > div.divsection-container > section > div > div.subsect--latest.divlife--latest > div.row.page--link > div > div > div > h3 > a, \
-                div#content > div.content-right > ul > li > div > h3 > a, \
-                div#content > div.content-right > ul > div > h3 > a'
+                #content > div.content-right > ul > li > div > h3 > a, \
+                #content > div.content-right > ul > div > h3 > a'
             )
 
         elif 'archive.org' in response.url:
@@ -1472,6 +1486,8 @@ class CovidNewsSpider(scrapy.Spider):
             "© 2021 The Financial Times",
             "© 2022 The Financial Times",
             "© 2023 The Financial Times",
+            "©2022 Bloomberg",
+            "©2022 project syndicate",
             "TSB",
             "lzb",
             "/lzb",
@@ -1580,6 +1596,7 @@ class CovidNewsSpider(scrapy.Spider):
             "Already a subscriber?",
             "We use cookies",
             "Tags / Keywords:",
+            "All letter writers must provide a full name and address",
             "To be updated with all the latest news and analyses daily.",
             "For more news about the novel coronavirus click here",
             "Follow INQUIRER.net",
@@ -1979,7 +1996,7 @@ class CovidNewsSpider(scrapy.Spider):
             elif 'bangkokpost.com' in response.url:
                 print("get_article_content for bangkokpost")
 
-                body = response.xpath('//p[not(contains(@class, "Footnote")) and not(contains(@class, "footnote")) and not(ancestor::div[@class="footer"]) and not(ancestor::div[@class="article-info--col"]) and not(ancestor::div[@class="article--columnist-history"]) and not(ancestor::div[@class="articlePhotoCenter"])]//text()').getall()
+                body = response.xpath('//p[not(contains(@class, "Footnote")) and not(contains(@class, "footnote")) and not(ancestor::div[@class="footer"]) and not(ancestor::div[@class="article-info"]) and not(ancestor::div[@class="article-info--col"]) and not(ancestor::div[@class="article--columnist-history"]) and not(ancestor::div[@class="articlePhotoCenter"]) and not(ancestor::div[@class="embed-responsive-content"])]//text()').getall()
 
                 if title is None:
                     title = response.css('div.article-headline > h1::text').get()
@@ -2168,11 +2185,22 @@ class CovidNewsSpider(scrapy.Spider):
             (TEST_SPECIFIC and link in self.start_urls):
             # Create a unique filename for each URL by removing the 'http://', replacing '/' with '_', and adding '.html'
             file_parent_directory = ''
-            filename = file_parent_directory + link.replace('http://', '').replace('/', '_') + '.html'
-            print("filename = ", filename)
+            original_filename = file_parent_directory + link.replace('http://', '').replace('/', '_') + '.html'
+            print("filename = ", original_filename)
+
+            # Solution to OSError: [Errno 63] File name too long : Truncate the filename
+            filename_max_length = 255  # Adjust based on the filesystem's limits
+            if len(original_filename) > filename_max_length:
+                filename = original_filename[:filename_max_length]
+            else:
+                filename = original_filename
 
             # Write the entire body of the response to a file
             with open(filename, 'wb') as f:
+                if len(original_filename) > filename_max_length:
+                    f.write(original_filename.encode('utf-8'))
+                    f.write('\n'.encode('utf-8'))
+
                 f.write(body.encode('utf-8'))
 
         return None
