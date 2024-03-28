@@ -66,6 +66,9 @@ elif search_country == 'vietnam':
 elif search_country == 'thailand':
     allowed_domain_names = ["bangkokpost.com"]
 
+elif search_country == 'indonesia':
+    allowed_domain_names = ["thejakartapost.com"]
+
 # not accessible due to DNS lookup error or the webpage had since migrated to other subdomains
 inaccessible_subdomain_names = ["olympianbuilder.straitstimes.com", "ststaff.straitstimes.com", "media.straitstimes.com",
                                 "buildsg2065.straitstimes.com", "origin-stcommunities.straitstimes.com",
@@ -118,6 +121,10 @@ irrelevant_subdomain_names = ["channelnewsasia.com/watch/", "cnaluxury.channelne
                               "thestar.com.my/tag/energy", "thestar.com.my/tag/smartphones",
                               "bangkokpost.com/video", "bangkokpost.com/photo", "bangkokpost.com/business",
                               "bangkokpost.com/learning/course/",
+                              "thejakartapost.com/election-2024", "thejakartapost.com/business", "thejakartapost.com/longform",
+                              "thejakartapost.com/epost", "thejakartapost.com/culture/entertainment",
+                              "thejakartapost.com/multimedia/video", "thejakartapost.com/multimedia/photo",
+                              "thejakartapost.com/longform/", "thejakartapost.com/business/",
                               "bernama.com/en/videos/", "bernama.com/tv/", "bernama.com/radio/", "images.bernama.com",
                               "entertainment.inquirer.net", "business.inquirer.net", "opinion.inquirer.net",
                               "sports.inquirer.net", "technology.inquirer.net", "usa.inquirer.net",
@@ -182,6 +189,8 @@ class CovidNewsSpider(scrapy.Spider):
 
     if TEST_SPECIFIC:
         start_urls = [
+                      "https://www.bangkokpost.com/learning/easy/2105639/wear-mask-or-pay-20-000-baht-fine",  # for testing xpath() on <li> tags
+                      "https://www.bangkokpost.com/life/social-and-lifestyle/2283058/owed-a-real-debt-of-gratitude",  # for testing xpath() on <li> tags
                       "https://www.bangkokpost.com/thailand/pr/2331868/manufacturing-expo-2022-kicks-off-the-most-comprehensive-exhibition-for-the-manufacturing-and-supporting-industries-bringing-in-ground-breaking-machinery-and-technologies-across-9-shows-in-one-mega-event-as-well-as-30-seminars-aimed-to-deep-dive-into-the-industry",  # filename too long
                       "https://www.bangkokpost.com/thailand/pr/2121403/central-world-joins-hands-with-king-chulalongkorn-memorial-hospital-of-the-thai-red-cross-society-to-open-a-vaccination-centre-to-help-authorities-fight-the-pandemic-reinforcing-central-pattanas-position-as-the-private-sectors-leader-in-mass-vaccinations",  # filename too long
                       "https://www.bangkokpost.com/thailand/pr/2123287/central-pattana-joins-hands-with-partners-in-national-mission-reaffirming-central-shopping-centers-as-the-model-of-safe-vaccination-centres-nationwide-launching-im-vaccinated-campaign-in-23-central-shopping-centres",  # filename too long
@@ -293,6 +302,11 @@ class CovidNewsSpider(scrapy.Spider):
                     #'https://search.bangkokpost.com/search/result_advanced?q=covid&searchedField=all&category=all&xNewsSection=&xChannel=&xColumn=covid&author=&xDate2=past60Days&xDate=&xDateSearchRadio=range&xDateFrom=01%2F01%2F2020&xDateTo=01%2F01%2F2023',
                     'https://search.bangkokpost.com/search/result_advanced?q=covid&category=archive&refinementFilter=&sort=newest&publishedDate=%5B2020-01-01T00%3A00%3A00Z%3B2022-12-31T23%3A59%3A59Z%5D&searchedField=all&xNewsSection=&xChannel=&xColumn=&author='
                 ]
+
+        elif search_country == 'indonesia':
+            start_urls = [
+                'https://www.thejakartapost.com'
+            ]
 
     # settings for Javacript handling
     if USE_SPLASH:  # scrapy-splash
@@ -689,6 +703,9 @@ class CovidNewsSpider(scrapy.Spider):
                 more_links = response.css('a::attr(href)').getall()
             else:
                 more_links = response.css('p.page-Navigation > a::attr(href)').getall()
+
+        elif 'thejakartapost.com' in response.url:
+            more_links = response.css('a::attr(href)').getall()
 
         elif 'archive.org' in response.url:
             more_links = response.css('a.format-summary:contains("FULL TEXT")::attr(href)').getall()
@@ -1149,6 +1166,21 @@ class CovidNewsSpider(scrapy.Spider):
                 #content > div.content-right > ul > div > h3 > a'
             )
 
+        elif 'thejakartapost.com' in response.url:
+            return response.css(
+                'body > div.tjp-wrapper > div.col-xs-12.tjpcontainer > div.container.borderGrid > div > div > div > div > div > div.tjp-homepage__headline > div > div > div.tjp-homepage__headline-main.outlined > div > div > a, \
+                body > div.tjp-wrapper > div.col-xs-12.tjpcontainer > div.container.borderGrid > div > div > div > div > div > div.tjp-homepage__headline > div > div > div.tjp-homepage__headline-third.outlined > div > div > a, \
+                body > div.tjp-wrapper > div.col-xs-12.tjpcontainer > div.container.borderGrid > div > div > div > div > div > div.tjp-homepage__section.tjp-homepage__section--popular > div > div > div > div.tjp-grid.tjp-grid--1-2 > div > div > a, \
+                #swiper-wrapper-61071fce948872ee1 > div.swiper-slide.swiper-slide-active > a, \
+                body > div.tjp-wrapper > div.col-xs-12.tjpcontainer > div.container.borderGrid > div > div > div > div > div > div.tjp-homepage__section.tjp-homepage__section--popular > div > div > div > div.tjp-grid.tjp-grid--2 > div > div > a, \
+                body > div.tjp-wrapper > div.col-xs-12.tjpcontainer > div.container.borderGrid > div > div > div > div > div > div.tjp-homepage__section.tjp-homepage__section--opinion > div.tjp-grid.tjp-grid--2 > div > a, \
+                body > div.tjp-wrapper > div.col-xs-12.tjpcontainer > div.container.borderGrid > div > div > div > div > div > div.tjp-homepage__section.tjp-homepage__section--opinion > div.tjp-grid.tjp-grid--2 > div > div > div > div > a, \
+                body > div.tjp-wrapper > div.col-xs-12.tjpcontainer > div.container.borderGrid > div > div > div > div > div > div.tjp-homepage__section.tjp-homepage__section--indonesia > div.tjp-grid.tjp-grid--2 > div > div > div > a, \
+                body > div.tjp-wrapper > div.col-xs-12.tjpcontainer > div.container.borderGrid > div > div > div > div > div > div.tjp-homepage__section.tjp-homepage__section--indonesia > div.tjp-grid.tjp-grid--2 > div > div > div > div > a, \
+                body > div.col-xs-12.tjpcontainer > div > div > div > div.jpRow.mainNews.lineSection.channelTwoSided.subCanal > div.containerLeft.col-xs-12 > div > div.theLatest.mb-20 > div.columns.tjp-newsListing > div > div > div.latestDetail > a, \
+                body > div.col-xs-12.tjpcontainer > div > div > div > div.jpRow.mainNews.headLineChannel.channelTwoSided > div > div.smallHeadline.channel > div > div > a'
+            )
+
         elif 'archive.org' in response.url:
             if 'https://archive.org/details/' in response.url:
                 # Extract article (only the FULL_TEXT download page) from the summary page
@@ -1339,6 +1371,11 @@ class CovidNewsSpider(scrapy.Spider):
             date = article.css('div.article__date-published').get()
             link = article.css('a::attr(href)').get()
 
+        elif 'thejakartapost.com' in response.url:
+            title = article.css('a ::text').get()
+            date = article.css('div.article__date-published').get()
+            link = article.css('a::attr(href)').get()
+
         elif 'archive.org' in response.url:
             title = article.css('title::text').get()
             date = article.xpath('//meta[@name="date"]/@content').get()
@@ -1465,6 +1502,8 @@ class CovidNewsSpider(scrapy.Spider):
             "is Professor",
             "is a lecturer",
             "is a senior lecturer",
+            "is Dean of",
+            "is the Dean of",
             "Note:",
             "Editor's note",
             "Editor’s Note:",
@@ -1473,6 +1512,7 @@ class CovidNewsSpider(scrapy.Spider):
             "Clarification note:",
             "Terence Fernandez is a",
             "Brian Martin is the managing editor of The Star",
+            "About the author:",
             "The article was edited",
             "This story was produced",
             "The story has been updated",
@@ -1486,8 +1526,23 @@ class CovidNewsSpider(scrapy.Spider):
             "© 2021 The Financial Times",
             "© 2022 The Financial Times",
             "© 2023 The Financial Times",
+            "©2020 Bloomberg",
+            "©2021 Bloomberg",
             "©2022 Bloomberg",
+            "©2020 Project Syndicate",
+            "©2021 Project Syndicate",
             "©2022 project syndicate",
+            "©1995-2022 Project Syndicate",
+            "©Project Syndicate",
+            "Project Syndicate",
+            "©2022",
+            "© 2022",
+            "©2021",
+            "© 2021",
+            "©2020",
+            "© 2020",
+            "© 2016 - 2024 PT. Bina Media Tenggara",
+            "©CNN",
             "TSB",
             "lzb",
             "/lzb",
@@ -1559,8 +1614,14 @@ class CovidNewsSpider(scrapy.Spider):
             "– Hartford Courant/Tribune News Service",
             "– Bangkok Post, Thailand/Tribune News Service",
             "– Khaleej Times, Dubai/Tribune News Service",
+            "burs/",
+            "burs-",
+            "bangkok post/",
+            "Email karnjanak@bangkokpost.co.th",
+            "CONTACT: BANGKOK POST BUILDING",
             "MCI (P)",
             "[ac]",
+            "-- More to follow --",
             "Click below to watch",
             "Click here for more",
             "Click here to read more",
@@ -1596,6 +1657,8 @@ class CovidNewsSpider(scrapy.Spider):
             "Already a subscriber?",
             "We use cookies",
             "Tags / Keywords:",
+            "By registering, you agree with",
+            "All letter writers must provide full name and address",
             "All letter writers must provide a full name and address",
             "To be updated with all the latest news and analyses daily.",
             "For more news about the novel coronavirus click here",
@@ -1996,7 +2059,7 @@ class CovidNewsSpider(scrapy.Spider):
             elif 'bangkokpost.com' in response.url:
                 print("get_article_content for bangkokpost")
 
-                body = response.xpath('//p[not(contains(@class, "Footnote")) and not(contains(@class, "footnote")) and not(ancestor::div[@class="footer"]) and not(ancestor::div[@class="article-info"]) and not(ancestor::div[@class="article-info--col"]) and not(ancestor::div[@class="article--columnist-history"]) and not(ancestor::div[@class="articlePhotoCenter"]) and not(ancestor::div[@class="embed-responsive-content"])]//text()').getall()
+                body = response.xpath('//p[not(contains(@class, "Footnote")) and not(contains(@class, "footnote")) and not(ancestor::div[@class="footer"]) and not(ancestor::div[@class="article-info"]) and not(ancestor::div[@class="article-info--col"]) and not(ancestor::div[@class="article--columnist-history"]) and not(ancestor::div[@class="articlePhotoCenter"]) and not(ancestor::div[@class="embed-responsive-content"]) and not(ancestor::div[@class="PostbagName"])]//text() | //article/div[@class="articl-content"]/ul/li//text() | //article/div[@class="article-content"]/ul/li//text() | //article/div[@class="article-content"]/h2//text()').getall()
 
                 if title is None:
                     title = response.css('div.article-headline > h1::text').get()
@@ -2014,6 +2077,17 @@ class CovidNewsSpider(scrapy.Spider):
 
                 # Preprocess the string to remove unnecessary parts
                 date = original_date_str.split("PUBLISHED :")[-1].split("published :")[-1].split(" at ")[0].strip()
+
+            elif 'thejakartapost.com' in response.url:
+                body = response.xpath('//p[not(ancestor::div[@class="tjp-newsletter-box"])]//text()').getall()
+
+                if title is None:
+                    title = response.css('div.tjp-single__head-item.tjp-single__head-item--detail > h1::text').get()
+
+                date = response.css('div.tjp-meta > div > div.tjp-meta__content-list > div:nth-child(2)::text').get()
+
+                if date is None:
+                    print("date is None for thejakartapost")
 
             elif 'archive.org' in response.url:
                 body = response.css('div.article p::text').getall() or \
@@ -2161,6 +2235,10 @@ class CovidNewsSpider(scrapy.Spider):
             elif search_country == 'thailand':
                 # https://en.wikipedia.org/wiki/Timeline_of_the_COVID-19_pandemic_in_Thailand
                 date_is_within_covid_period = ((published_year >= 2020) and (published_year <= 2022))
+
+            elif search_country == 'indonesia':
+                # https://en.wikipedia.org/wiki/COVID-19_pandemic_in_Indonesia
+                date_is_within_covid_period = ((published_year >= 2020) and (published_year <= 2023))
 
         print(f"date = {date}, and published_year = {published_year}, and date_is_within_covid_period = {date_is_within_covid_period}")
 
