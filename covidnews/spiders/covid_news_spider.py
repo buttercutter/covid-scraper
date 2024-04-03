@@ -67,7 +67,7 @@ elif search_country == 'thailand':
     allowed_domain_names = ["bangkokpost.com"]
 
 elif search_country == 'indonesia':
-    allowed_domain_names = ["thejakartapost.com"]
+    allowed_domain_names = ["thejakartapost.com", "go.kompas.com"]
 
 # not accessible due to DNS lookup error or the webpage had since migrated to other subdomains
 inaccessible_subdomain_names = ["olympianbuilder.straitstimes.com", "ststaff.straitstimes.com", "media.straitstimes.com",
@@ -189,6 +189,9 @@ class CovidNewsSpider(scrapy.Spider):
 
     if TEST_SPECIFIC:
         start_urls = [
+                      "https://go.kompas.com/read/2023/01/24/095557074/tiketcom-offers-best-accommodation-airfare-deals-for-cny-holiday",  # for testing xpath() on <h3> and <li> tags
+                      "https://www.thejakartapost.com/life/2020/04/29/singapores-hooligan-cook-offers-free-meals-for-needy-during-virus-lockdown.html",  # for testing xpath() on <h1> tag
+                      "https://newgelora.thejakartapost.com/culture/2022/09/07/new-york-fashion-week-kicks-off-with-proenza-schouler-mens-day-.html",  # for testing xpath() on <h1> and <p> tags
                       "https://www.bangkokpost.com/learning/easy/2105639/wear-mask-or-pay-20-000-baht-fine",  # for testing xpath() on <li> tags
                       "https://www.bangkokpost.com/life/social-and-lifestyle/2283058/owed-a-real-debt-of-gratitude",  # for testing xpath() on <li> tags
                       "https://www.bangkokpost.com/thailand/pr/2331868/manufacturing-expo-2022-kicks-off-the-most-comprehensive-exhibition-for-the-manufacturing-and-supporting-industries-bringing-in-ground-breaking-machinery-and-technologies-across-9-shows-in-one-mega-event-as-well-as-30-seminars-aimed-to-deep-dive-into-the-industry",  # filename too long
@@ -305,7 +308,8 @@ class CovidNewsSpider(scrapy.Spider):
 
         elif search_country == 'indonesia':
             start_urls = [
-                'https://www.thejakartapost.com'
+                'https://www.thejakartapost.com',
+                'https://go.kompas.com/search?q=covid&submit=Submit'
             ]
 
     # settings for Javacript handling
@@ -626,6 +630,10 @@ class CovidNewsSpider(scrapy.Spider):
             # for specific use case only
             domain_name = "en." + domain_name
 
+        elif (search_country == 'indonesia' and domain_name == 'kompas.com'):
+            # for specific use case only
+            domain_name = "go." + domain_name
+
         return domain_name
 
 
@@ -706,6 +714,9 @@ class CovidNewsSpider(scrapy.Spider):
 
         elif 'thejakartapost.com' in response.url:
             more_links = response.css('a::attr(href)').getall()
+
+        elif 'go.kompas.com' in response.url:
+            more_links = response.css('div.paging__item > a.paging__link::attr(href)').getall()
 
         elif 'archive.org' in response.url:
             more_links = response.css('a.format-summary:contains("FULL TEXT")::attr(href)').getall()
@@ -1181,6 +1192,11 @@ class CovidNewsSpider(scrapy.Spider):
                 body > div.col-xs-12.tjpcontainer > div > div > div > div.jpRow.mainNews.headLineChannel.channelTwoSided > div > div.smallHeadline.channel > div > div > a'
             )
 
+        elif 'go.kompas.com' in response.url:
+            return response.css(
+                'body > div.wrap > div.container.clearfix > div.row.mt3.col-offset-fluid.clearfix > div.col-bs10-7 > div.latest--news.mt2.clearfix > div > div.article__list__title > h3 > a'
+            )
+
         elif 'archive.org' in response.url:
             if 'https://archive.org/details/' in response.url:
                 # Extract article (only the FULL_TEXT download page) from the summary page
@@ -1376,6 +1392,11 @@ class CovidNewsSpider(scrapy.Spider):
             date = article.css('div.article__date-published').get()
             link = article.css('a::attr(href)').get()
 
+        elif 'go.kompas.com' in response.url:
+            title = article.css('a ::text').get()
+            date = article.css('div.article__date-published').get()
+            link = article.css('a::attr(href)').get()
+
         elif 'archive.org' in response.url:
             title = article.css('title::text').get()
             date = article.xpath('//meta[@name="date"]/@content').get()
@@ -1499,11 +1520,13 @@ class CovidNewsSpider(scrapy.Spider):
             "is a doctoral candidate",
             "is Research Fellow",
             "is Associate Professor",
+            "is an associate professor",
             "is Professor",
             "is a lecturer",
             "is a senior lecturer",
             "is Dean of",
             "is the Dean of",
+            "Senior Research Associate",
             "Note:",
             "Editor's note",
             "Editor’s Note:",
@@ -1513,7 +1536,32 @@ class CovidNewsSpider(scrapy.Spider):
             "Terence Fernandez is a",
             "Brian Martin is the managing editor of The Star",
             "About the author:",
+            "(Author:",
+            "(Author :",
+            "(Authors:",
+            "(Authors :",
+            "(Reporter:",
+            "(Reporter :",
+            "(Reporters:",
+            "(Reporters :",
+            "(Writer:",
+            "(Writer :",
+            "(Writers:",
+            "(Writers :",
+            "(Editor:",
+            "(Editor :",
+            "(Editors:",
+            "(Editors :",
+            "(Writer & Editor:",
+            "(Writer & Editor :",
+            "(Writers & Editors:",
+            "(Writers & Editors :",
+            "(Author/Editor:",
+            "(Author/Editor :",
+            "(Authors/Editors:",
+            "(Authors/Editors :",
             "The article was edited",
+            "This article was first published",
             "This story was produced",
             "The story has been updated",
             "This story has been updated",
@@ -1548,8 +1596,10 @@ class CovidNewsSpider(scrapy.Spider):
             "/lzb",
             "[atm]",
             "/atm",
+            "Sources: Reuters",
             "(Source: AP)",
             "(Reporting by",
+            "(Additional reporting by",
             "Additional reporting by",
             "Edited by",  # Comment this out for manual scraping due to truncated words for "accrEdited by"
             "Produced by:",
@@ -2079,7 +2129,7 @@ class CovidNewsSpider(scrapy.Spider):
                 date = original_date_str.split("PUBLISHED :")[-1].split("published :")[-1].split(" at ")[0].strip()
 
             elif 'thejakartapost.com' in response.url:
-                body = response.xpath('//p[not(ancestor::div[@class="tjp-newsletter-box"])]//text()').getall()
+                body = response.xpath('//p[not(ancestor::div[@class="tjp-newsletter-box"]) and not(ancestor::div[@class="on-ie-underversion9"]) and not(ancestor::div[@class="social-login col-sm-12 columns"])]//text() | //div[@class="tjp-opening"]/h1/text()').getall()
 
                 if title is None:
                     title = response.css('div.tjp-single__head-item.tjp-single__head-item--detail > h1::text').get()
@@ -2088,6 +2138,17 @@ class CovidNewsSpider(scrapy.Spider):
 
                 if date is None:
                     print("date is None for thejakartapost")
+
+            elif 'go.kompas.com' in response.url:
+                body = response.xpath('//p[not(contains(., "Also Read:")) and not(contains(., "Also read:"))]//text() | //div[@class="read__content"]//h3//text() | //div[@class="read__content"]//li//text()').getall()
+
+                if title is None:
+                    title = response.css('body > div.wrap > div.container.clearfix > div > div > h1::text').get()
+
+                date = response.css('div.read__time::text').get()
+
+                if date is None:
+                    print("date is None for go.kompas")
 
             elif 'archive.org' in response.url:
                 body = response.css('div.article p::text').getall() or \
