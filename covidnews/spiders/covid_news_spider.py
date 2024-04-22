@@ -39,6 +39,10 @@ USE_SELENIUM = 0
 USE_PLAYWRIGHT = 0
 USE_PUPPETEER = 0
 
+# USE cloudfare anti-bot verification bypass technique
+# https://github.com/Anorov/cloudflare-scrape
+USE_CLOUDFLARE_BYPASS = 0
+
 # The status code 429 stands for "Too Many Requests".
 # It is an HTTP response status code indicating that the user has sent too many requests in a given amount of time ("rate limiting").
 USE_RATE_LIMIT = 0
@@ -68,6 +72,9 @@ elif search_country == 'thailand':
 
 elif search_country == 'indonesia':
     allowed_domain_names = ["thejakartapost.com", "go.kompas.com"]
+
+elif search_country == 'cambodia':
+    allowed_domain_names = ["khmertimeskh.com"]
 
 # not accessible due to DNS lookup error or the webpage had since migrated to other subdomains
 inaccessible_subdomain_names = ["olympianbuilder.straitstimes.com", "ststaff.straitstimes.com", "media.straitstimes.com",
@@ -311,6 +318,12 @@ class CovidNewsSpider(scrapy.Spider):
                 'https://www.thejakartapost.com',
                 'https://go.kompas.com/search?q=covid&submit=Submit'
             ]
+
+        elif search_country == 'cambodia':
+            start_urls = [
+                'https://www.khmertimeskh.com/page/2/?s=covid'
+            ]
+
 
     # settings for Javacript handling
     if USE_SPLASH:  # scrapy-splash
@@ -599,20 +612,27 @@ class CovidNewsSpider(scrapy.Spider):
                             )
 
                 else:
-                    yield SplashRequest(
-                            url,
-                            callback=self.parse,
-                            endpoint='execute',  # for closing advertising overlay page to get to desired page
-                            args={'lua_source': self.js_script,
-                                  'lua_source_isolated': False,  # for showing self.js_script print() output
-                                  'adblock': True,
-                                  'wait': 10,
-                                  'resource_timeout': 10,
-                                  'timeout': 60  # limit the total time the Lua script can run (optional)
-                                 },
-                            splash_headers={'X-Splash-Render-HTML': 1},  # for non-pure html with javascript
-                            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
-                        )
+                    if USE_CLOUDFLARE_BYPASS:
+                        print("Using Cloudfare bypass")
+                        import cfscrape
+                        scraper = cfscrape.create_scraper()  # returns a CloudflareScraper instance
+                        print(scraper.get("https://www.khmertimeskh.com/?s=covid").content)  # => "<!DOCTYPE html><html><head>..."
+
+                    else:
+                        yield SplashRequest(
+                                url,
+                                callback=self.parse,
+                                endpoint='execute',  # for closing advertising overlay page to get to desired page
+                                args={'lua_source': self.js_script,
+                                      'lua_source_isolated': False,  # for showing self.js_script print() output
+                                      'adblock': True,
+                                      'wait': 10,
+                                      'resource_timeout': 10,
+                                      'timeout': 60  # limit the total time the Lua script can run (optional)
+                                     },
+                                splash_headers={'X-Splash-Render-HTML': 1},  # for non-pure html with javascript
+                                headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
+                            )
 
 
     def extract_domain_name(self, link):
@@ -717,6 +737,9 @@ class CovidNewsSpider(scrapy.Spider):
 
         elif 'go.kompas.com' in response.url:
             more_links = response.css('div.paging__item > a.paging__link::attr(href)').getall()
+
+        elif 'khmertimeskh.com' in response.url:
+            more_links = response.css('div#paging > a.next.page-numbers::attr(href)').getall()
 
         elif 'archive.org' in response.url:
             more_links = response.css('a.format-summary:contains("FULL TEXT")::attr(href)').getall()
@@ -1197,6 +1220,11 @@ class CovidNewsSpider(scrapy.Spider):
                 'body > div.wrap > div.container.clearfix > div.row.mt3.col-offset-fluid.clearfix > div.col-bs10-7 > div.latest--news.mt2.clearfix > div > div.article__list__title > h3 > a'
             )
 
+        elif 'khmertimeskh.com' in response.url:
+            return response.css(
+                'div.item-content > h2.item-title > a'
+            )
+
         elif 'archive.org' in response.url:
             if 'https://archive.org/details/' in response.url:
                 # Extract article (only the FULL_TEXT download page) from the summary page
@@ -1393,6 +1421,11 @@ class CovidNewsSpider(scrapy.Spider):
             link = article.css('a::attr(href)').get()
 
         elif 'go.kompas.com' in response.url:
+            title = article.css('a ::text').get()
+            date = article.css('div.article__date-published').get()
+            link = article.css('a::attr(href)').get()
+
+        elif 'khmertimeskh.com' in response.url:
             title = article.css('a ::text').get()
             date = article.css('div.article__date-published').get()
             link = article.css('a::attr(href)').get()
@@ -2150,6 +2183,17 @@ class CovidNewsSpider(scrapy.Spider):
                 if date is None:
                     print("date is None for go.kompas")
 
+            elif 'khmertimeskh.com' in response.url:
+                body = response.xpath('//p[not(contains(., "Also Read:")) and not(contains(., "Also read:"))]//text()').getall()
+
+                if title is None:
+                    title = response.css('h2.entry-title::text').get()
+
+                date = response.css('time.entry-time::text').get()
+
+                if date is None:
+                    print("date is None for khmertimeskh")
+
             elif 'archive.org' in response.url:
                 body = response.css('div.article p::text').getall() or \
                        response.css('div.text-long').getall() or \
@@ -2300,6 +2344,10 @@ class CovidNewsSpider(scrapy.Spider):
             elif search_country == 'indonesia':
                 # https://en.wikipedia.org/wiki/COVID-19_pandemic_in_Indonesia
                 date_is_within_covid_period = ((published_year >= 2020) and (published_year <= 2023))
+
+            elif search_country == 'cambodia':
+                # https://en.wikipedia.org/wiki/COVID-19_pandemic_in_Cambodia#Timeline
+                date_is_within_covid_period = ((published_year >= 2020) and (published_year <= 2021))
 
         print(f"date = {date}, and published_year = {published_year}, and date_is_within_covid_period = {date_is_within_covid_period}")
 
