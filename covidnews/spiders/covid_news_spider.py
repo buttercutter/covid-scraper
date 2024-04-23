@@ -74,7 +74,7 @@ elif search_country == 'indonesia':
     allowed_domain_names = ["thejakartapost.com", "go.kompas.com"]
 
 elif search_country == 'cambodia':
-    allowed_domain_names = ["khmertimeskh.com"]
+    allowed_domain_names = ["khmertimeskh.com", "english.cambodiadaily.com"]
 
 # not accessible due to DNS lookup error or the webpage had since migrated to other subdomains
 inaccessible_subdomain_names = ["olympianbuilder.straitstimes.com", "ststaff.straitstimes.com", "media.straitstimes.com",
@@ -321,7 +321,8 @@ class CovidNewsSpider(scrapy.Spider):
 
         elif search_country == 'cambodia':
             start_urls = [
-                'https://www.khmertimeskh.com/page/2/?s=covid'
+                'https://www.khmertimeskh.com/page/2/?s=covid',
+                'https://english.cambodiadaily.com/?s=covid'
             ]
 
 
@@ -654,6 +655,10 @@ class CovidNewsSpider(scrapy.Spider):
             # for specific use case only
             domain_name = "go." + domain_name
 
+        elif (search_country == 'cambodia' and domain_name == 'cambodiadaily.com'):
+            # for specific use case only
+            domain_name = "english." + domain_name
+
         return domain_name
 
 
@@ -740,6 +745,9 @@ class CovidNewsSpider(scrapy.Spider):
 
         elif 'khmertimeskh.com' in response.url:
             more_links = response.css('div#paging > a.next.page-numbers::attr(href)').getall()
+
+        elif 'english.cambodiadaily.com' in response.url:
+            more_links = response.css('div.page-nav > a::attr(href)').getall()
 
         elif 'archive.org' in response.url:
             more_links = response.css('a.format-summary:contains("FULL TEXT")::attr(href)').getall()
@@ -1225,6 +1233,11 @@ class CovidNewsSpider(scrapy.Spider):
                 'div.item-content > h2.item-title > a'
             )
 
+        elif 'english.cambodiadaily.com' in response.url:
+            return response.css(
+                'div.td-module-meta-info > h3 > a'
+            )
+
         elif 'archive.org' in response.url:
             if 'https://archive.org/details/' in response.url:
                 # Extract article (only the FULL_TEXT download page) from the summary page
@@ -1426,6 +1439,11 @@ class CovidNewsSpider(scrapy.Spider):
             link = article.css('a::attr(href)').get()
 
         elif 'khmertimeskh.com' in response.url:
+            title = article.css('a ::text').get()
+            date = article.css('div.article__date-published').get()
+            link = article.css('a::attr(href)').get()
+
+        elif 'english.cambodiadaily.com' in response.url:
             title = article.css('a ::text').get()
             date = article.css('div.article__date-published').get()
             link = article.css('a::attr(href)').get()
@@ -1747,6 +1765,7 @@ class CovidNewsSpider(scrapy.Spider):
             "For more news about the novel coronavirus click here",
             "Follow INQUIRER.net",
             "The Inquirer Foundation",
+            "The Cambodia Daily is",
             "Philstar.com is one of the most ",
             "ADVT",
             "Best viewed on",
@@ -2193,6 +2212,17 @@ class CovidNewsSpider(scrapy.Spider):
 
                 if date is None:
                     print("date is None for khmertimeskh")
+
+            elif 'english.cambodiadaily.com' in response.url:
+                body = response.xpath('//p[not(contains(., "Also Read:")) and not(contains(., "Also read:"))]//text()').getall()
+
+                if title is None:
+                    title = response.css('h1.tdb-title-text::text').get()
+
+                date = response.css('time.entry-date.updated.td-module-date::text').get()
+
+                if date is None:
+                    print("date is None for cambodiadaily")
 
             elif 'archive.org' in response.url:
                 body = response.css('div.article p::text').getall() or \
