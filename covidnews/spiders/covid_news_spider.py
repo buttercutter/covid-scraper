@@ -74,7 +74,7 @@ elif search_country == 'indonesia':
     allowed_domain_names = ["thejakartapost.com", "go.kompas.com"]
 
 elif search_country == 'cambodia':
-    allowed_domain_names = ["khmertimeskh.com", "english.cambodiadaily.com"]
+    allowed_domain_names = ["khmertimeskh.com", "phnompenhpost.com", "english.cambodiadaily.com"]
 
 # not accessible due to DNS lookup error or the webpage had since migrated to other subdomains
 inaccessible_subdomain_names = ["olympianbuilder.straitstimes.com", "ststaff.straitstimes.com", "media.straitstimes.com",
@@ -138,6 +138,31 @@ irrelevant_subdomain_names = ["channelnewsasia.com/watch/", "cnaluxury.channelne
                               "pop.inquirer.net", "inquirer.net/inqpop", "lifestyle.inquirer.net",
                               "philstar.com/sports", "philstar.com/lifestyle", "philstar.com/business",
                               "philstar.com/entertainment",
+                              "phnompenhpost.com/financial", "phnompenhpost.com/business",
+                              "phnompenhpost.com/label/opinion/business", "phnompenhpost.com/label/lifestyle/national/lifestyle/business",
+                              "phnompenhpost.com/label/opinion/national/business", "phnompenhpost.com/label/opinion/national/lifestyle",
+                              "phnompenhpost.com/label/opinion/lifestyle/national", "phnompenhpost.com/label/opinion/national/national",
+                              "phnompenhpost.com/label/opinion/lifestyle/lifestyle",
+                              "phnompenhpost.com/label/lifestyle/business", "phnompenhpost.com/label/business/lifestyle",
+                              "phnompenhpost.com/label/national/business", "phnompenhpost.com/label/lifestyle/national",
+                              "phnompenhpost.com/label/business/national", "phnompenhpost.com/label/lifestyle/lifestyle",
+                              "phnompenhpost.com/label/national/lifestyle", "phnompenhpost.com/label/national/national",
+                              "phnompenhpost.com/label/sport/national", "phnompenhpost.com/label/politics/business",
+                              "phnompenhpost.com/label/politics/national", "phnompenhpost.com/label/politics/lifestyle",
+                              "phnompenhpost.com/label/post-property", "phnompenhpost.com/label/sport/lifestyle",
+                              "phnompenhpost.com/label/sport/business", "phnompenhpost.com/label/national-politics/national",
+                              "phnompenhpost.com/label/business/business", "phnompenhpost.com/label/opinion/lifestyle/business",
+                              "phnompenhpost.com/label/post-in-depth/national/lifestyle",
+                              "phnompenhpost.com/label/post-in-depth/national/business",
+                              "phnompenhpost.com/label/post-in-depth/lifestyle/lifestyle",
+                              "phnompenhpost.com/label/post-in-depth/lifestyle/business",
+                              "phnompenhpost.com/label/post-in-depth/national/national",
+                              "phnompenhpost.com/label/post-in-depth/business/business",
+                              "phnompenhpost.com/label/post-in-depth/business/national",
+                              "phnompenhpost.com/label/post-in-depth/lifestyle/national",
+                              "phnompenhpost.com/label/post-in-depth/business/lifestyle",
+                              "phnompenhpost.com/label/national-politics/business",
+                              "phnompenhpost.com/video", "phnompenhpost.com/announcement",
                               "news.vnanet.vn/en/",  # only works for paid login subscription
                               "vnanet.vn/en/anh/vna-photos", "seagames-en.vnanet.vn",
                               "vietnamnews.vn/Economy", "vietnamnews.vn/Life - Style", "vietnamnews.vn/life-style",
@@ -321,7 +346,8 @@ class CovidNewsSpider(scrapy.Spider):
 
         elif search_country == 'cambodia':
             start_urls = [
-                'https://www.khmertimeskh.com/page/2/?s=covid',
+                #'https://www.khmertimeskh.com/page/2/?s=covid',  # CloudFlare anti-bot verification
+                'https://phnompenhpost.com/search/?query=covid',
                 'https://english.cambodiadaily.com/?s=covid'
             ]
 
@@ -425,24 +451,56 @@ class CovidNewsSpider(scrapy.Spider):
             """
 
     else:
+        if search_country == 'cambodia' and 'phnompenhpost.com' in allowed_domain_names:
+            js_script = """
+                function main(splash, args)
+                    -- Go to the specified page
+                    assert(splash:go(args.url))
+                    splash:wait(7.0)
 
-        js_script = """
-            function main(splash, args)
+                    -- Try to find the "load more" button and click it
+                    local load_more_button = splash:select('#load-more-button')
+                    if load_more_button then
+                        load_more_button:mouse_click()
+                        splash:wait(5.0)  -- wait for more content to load after clicking
+                    end
 
-                -- Go to page
-                splash:go(splash.args.url)
+                    -- Optionally, you can loop the click for several times if you know
+                    -- the number of pages you need to load, or until the button is disabled
+                    while true do
+                        local load_more_button = splash:select('#load-more-button')
+                        if not load_more_button or load_more_button:attr('disabled') then
+                            break
+                        end
+                        load_more_button:mouse_click()
+                        splash:wait(5.0)  -- adjust wait time as necessary based on observed load times
+                    end
 
-                -- Wait for 7 seconds
-                splash:wait(7.0)
+                    -- Print the final URL after all interactions
+                    print("splash:url() = ", splash:url())
 
-                -- Print url
-                print("splash:url() = ", splash:url())
+                    -- Return the HTML of the page after fully loading all contents
+                    return splash:html()
+                end
+                """
+        else:
+            js_script = """
+                function main(splash, args)
 
-                -- Return HTML after waiting
-                return splash:html()
+                    -- Go to page
+                    splash:go(splash.args.url)
 
-            end
-            """
+                    -- Wait for 7 seconds
+                    splash:wait(7.0)
+
+                    -- Print url
+                    print("splash:url() = ", splash:url())
+
+                    -- Return HTML after waiting
+                    return splash:html()
+
+                end
+                """
 
 
     def search_archives(self, search_keywords, countries, creators, types, languages):
@@ -748,6 +806,13 @@ class CovidNewsSpider(scrapy.Spider):
 
         elif 'english.cambodiadaily.com' in response.url:
             more_links = response.css('div.page-nav > a::attr(href)').getall()
+
+        elif 'phnompenhpost.com' in response.url:
+            if SEARCH_ENTIRE_WEBSITE:
+                more_links = response.css('a::attr(href)').getall()
+            else:
+                # needs some javascript handling for clicking "Load more" button
+                more_links = response.css('p.page-Navigation > a::attr(href)').getall()
 
         elif 'archive.org' in response.url:
             more_links = response.css('a.format-summary:contains("FULL TEXT")::attr(href)').getall()
@@ -1238,6 +1303,21 @@ class CovidNewsSpider(scrapy.Spider):
                 'div.td-module-meta-info > h3 > a'
             )
 
+        elif 'phnompenhpost.com' in response.url:
+            return response.css(
+                'body > div.section-body.page-wrapper > div.section-news-ads > div.news-content > div.main-content > div > div > div.main-content-text > a, \
+                body > div.section-body.page-wrapper > div.section-news-ads > div.news-content > div.article-news > div.article-thumbnail > ul > li > a, \
+                body > div.section-body.page-wrapper > div.category > div.categories-left > div > div > div.category-content > div.category-row > div.category-item > a, \
+                body > div.section-body.page-wrapper > div.category-bot > div > div.category-bot-content > div.category-bot-item-md > div.category-bot-md-text > a, \
+                body > div.section-body.page-wrapper > div.category-bot > div > div.category-bot-content > div.category-bot-item-sm > div > div > a, \
+                body > div.section-body.page-wrapper > div.section-news-ads > div.news-content > div.slideshow-news > div > div > div > span > a, \
+                body > div.section-body.page-wrapper > div.section-news-ads > div.news-content > div.latest-news > ul > li > a, \
+                body > div.section-body.page-wrapper > div.section-news-ads > div.news-content > div.article-news > div > ul > li > a, \
+                #item-list > div > div.more-text > a, \
+                body > div.section-body.page-wrapper > div.section-news-ads > div.news-content > div.category-mid > div > ul > li > div > a, \
+                body > div.section-body.page-wrapper > div.section-article > div.right-sidebar > div.latest-news > ul > li > a'
+            )
+
         elif 'archive.org' in response.url:
             if 'https://archive.org/details/' in response.url:
                 # Extract article (only the FULL_TEXT download page) from the summary page
@@ -1444,6 +1524,11 @@ class CovidNewsSpider(scrapy.Spider):
             link = article.css('a::attr(href)').get()
 
         elif 'english.cambodiadaily.com' in response.url:
+            title = article.css('a ::text').get()
+            date = article.css('div.article__date-published').get()
+            link = article.css('a::attr(href)').get()
+
+        elif 'phnompenhpost.com' in response.url:
             title = article.css('a ::text').get()
             date = article.css('div.article__date-published').get()
             link = article.css('a::attr(href)').get()
@@ -1718,6 +1803,7 @@ class CovidNewsSpider(scrapy.Spider):
             "burs/",
             "burs-",
             "bangkok post/",
+            "CHINA DAILY/ANN",
             "Email karnjanak@bangkokpost.co.th",
             "CONTACT: BANGKOK POST BUILDING",
             "MCI (P)",
@@ -1753,6 +1839,7 @@ class CovidNewsSpider(scrapy.Spider):
             "catch the olympics games",
             "cna women is a section on cna",
             "Write to us at",
+            "Sign up for our daily",
             "Subscribe now to",
             ". Subscribe to",
             "Already a subscriber?",
@@ -2223,6 +2310,23 @@ class CovidNewsSpider(scrapy.Spider):
 
                 if date is None:
                     print("date is None for cambodiadaily")
+
+            elif 'phnompenhpost.com' in response.url:
+                body = response.xpath('//p[not(contains(., "Publication date")) and not(contains(., "Reporter :")) and not(ancestor::div[@class="img-captions"]) and not(ancestor::div[@class="mustwatch-text"])]//text()').getall()
+
+                if title is None:
+                    title = response.css('div.section-article-header > h2::text').get()
+
+                # XPath to find the <p> containing 'Publication date' and then extract the date
+                date = response.xpath('//p[contains(text(), "Publication date")]/text()').getall()[-1]
+                # print(f"date => {date}")
+
+                # Extracting the date part before the '|' inside '12 February 2023 | 12:12 ICT'
+                date = date.split('|')[0].strip()  # This will result in '12 February 2023'
+                # print(f"date =>> {date}")
+
+                if date is None:
+                    print("date is None for phnompenhpost.com")
 
             elif 'archive.org' in response.url:
                 body = response.css('div.article p::text').getall() or \
