@@ -825,6 +825,8 @@ class CovidNewsSpider(scrapy.Spider):
 
 
     def fix_url(self, url, default_url='https://www.example.com/'):
+        # print(f"Before fix_url(), url : {url}")
+
         # Remove repeated protocols
         url = re.sub(r'^http://link%20to%20microsite%20', '', url)
         url = re.sub(r"https?://https?://", "https://", url)
@@ -859,10 +861,13 @@ class CovidNewsSpider(scrapy.Spider):
         url = re.sub(r"https?://events\@thestar\.com\.my/", "https://events.thestar.com.my/", url)
 
         if not url.startswith("http"):
+            # print(f"default_url : {default_url}")
             url = urljoin(default_url, url)
 
         # Removes any whitespace characters
         url = url.strip()
+
+        # print(f"After fix_url(), url : {url}")
 
         # If the URL is fine, return it as is
         return url
@@ -924,6 +929,9 @@ class CovidNewsSpider(scrapy.Spider):
         else:
             next_pages = []
 
+        domain_name = self.extract_domain_name(response.url)
+        domain_url = "https://www." + domain_name
+
         next_pages_url = []
         for link in next_pages:
             # Fix wrong links that are already wrong at the source
@@ -932,14 +940,13 @@ class CovidNewsSpider(scrapy.Spider):
             # https://ww.domain.com/subdirectory
             # https://https://subdirectory
             #print(f"Before fix_url(), link : {link} is of type : {type(link)}")
-            link = self.fix_url(link, response.url)
+            link = self.fix_url(link, domain_url)
             #print(f"After fix_url(), link : {link} is of type : {type(link)}")
             next_pages_url.append(link)
 
         for next_page_url in next_pages_url:
             if next_page_url:
                 link = next_page_url.strip()
-                domain_name = self.extract_domain_name(link)
 
                 if "javascript" in link or "mailto" in link or "whatsapp://" in link or \
                     "play.google.com" in link or "apps.apple.com" in link or \
@@ -1554,8 +1561,9 @@ class CovidNewsSpider(scrapy.Spider):
             link = response.url
 
         if link:
-            link = self.fix_url(link, response.url)
-            domain_name = self.extract_domain_name(link)
+            domain_name = self.extract_domain_name(response.url)
+            domain_url = "https://www." + domain_name
+            link = self.fix_url(link, domain_url)
         else:
             domain_name = None
 
@@ -2318,14 +2326,19 @@ class CovidNewsSpider(scrapy.Spider):
                     title = response.css('div.section-article-header > h2::text').get()
 
                 # XPath to find the <p> containing 'Publication date' and then extract the date
-                date = response.xpath('//p[contains(text(), "Publication date")]/text()').getall()[-1]
-                # print(f"date => {date}")
+                date = response.xpath('//p[contains(text(), "Publication date")]/text()').getall()
+                print(f"date => {date}")
 
-                # Extracting the date part before the '|' inside '12 February 2023 | 12:12 ICT'
-                date = date.split('|')[0].strip()  # This will result in '12 February 2023'
-                # print(f"date =>> {date}")
+                if date:
+                    # we only want the text after 'Publication date'
+                    date = date[-1].strip()
+                    print(f"date =>> {date}")
 
-                if date is None:
+                    # Extracting the date part before the '|' inside '12 February 2023 | 12:12 ICT'
+                    date = date.split('|')[0].strip()  # This will result in '12 February 2023'
+                    print(f"date =>>> {date}")
+
+                else:
                     print("date is None for phnompenhpost.com")
 
             elif 'archive.org' in response.url:
@@ -2391,13 +2404,13 @@ class CovidNewsSpider(scrapy.Spider):
                          headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
                     )
 
-            # This is an early sign that the current page after url redirection
-            # is pointing to a new page containing multiple articles
-            if url_had_redirected and self.parse_articles(response) is not None and \
-                    (domain_name != "vietnamnews.vn" and domain_name != "en.vietnamplus.vn" and domain_name != "bangkokpost.com"):
-                # these domains have articles list even in the actual article
-                    print(f"going back to parse() for {link}")
-                    yield self.parse(response)
+            # This is an early sign that the current webpage is containing multiple articles
+            # url_had_redirected is not an absolute necessary condition that warrants the re-execution of parse()
+            if self.parse_articles(response) is not None and \
+                (domain_name != 'phnompenhpost.com' and domain_name != "vietnamnews.vn" and domain_name != "en.vietnamplus.vn" and domain_name != "bangkokpost.com"):
+                # these domains have articles list even in the actual article, but we do not want to deal with the list now during article data writing phase
+                print(f"going back to parse() for {link}")
+                yield self.parse(response)
 
             else:
                 self.write_to_local_data(response, link, title, body, date)
