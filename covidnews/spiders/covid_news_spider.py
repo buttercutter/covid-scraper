@@ -207,6 +207,7 @@ incomplete_articles = ["https://www.straitstimes.com/singapore/education/ask-san
                        "https://www.thestar.com.my/2003/07/27/one-big-shopping-spree--for-carnival",
                        "https://vnanet.vn/Frontend/TrackingView.aspx?IID=7155206",
                        "https://vnanet.vn/Frontend/TrackingView.aspx?IID=7167889",
+                       "https://www.khmertimeskh.com/videos/at-least-60-garment-workers-test-positive-for-covid-19-in-svay-rieng",
                        "https://mb.com.ph/rss/articles"
                         ]
 
@@ -221,6 +222,9 @@ class CovidNewsSpider(scrapy.Spider):
 
     if TEST_SPECIFIC:
         start_urls = [
+                      "https://www.khmertimeskh.com/501079622/locations-and-schedule-for-5th-covid-19-vaccination-announced",  # needs to manually scrape external document rendered in site
+                      "https://www.khmertimeskh.com/50957425/cambodia-to-set-aside-700-million-for-continuation-of-covid-19-interventions-in-2022",  # for testing xpath() on <li> tag
+                      "https://www.khmertimeskh.com/50971131/list-of-covid-19-vaccines-recognised-by-cambodia-for-quarantine-free-international-entry",  # for testing xpath() on <table> tag
                       "https://go.kompas.com/read/2023/01/24/095557074/tiketcom-offers-best-accommodation-airfare-deals-for-cny-holiday",  # for testing xpath() on <h3> and <li> tags
                       "https://www.thejakartapost.com/life/2020/04/29/singapores-hooligan-cook-offers-free-meals-for-needy-during-virus-lockdown.html",  # for testing xpath() on <h1> tag
                       "https://newgelora.thejakartapost.com/culture/2022/09/07/new-york-fashion-week-kicks-off-with-proenza-schouler-mens-day-.html",  # for testing xpath() on <h1> and <p> tags
@@ -346,9 +350,9 @@ class CovidNewsSpider(scrapy.Spider):
 
         elif search_country == 'cambodia':
             start_urls = [
-                #'https://www.khmertimeskh.com/page/2/?s=covid',  # CloudFlare anti-bot verification
-                'https://phnompenhpost.com/search/?query=covid',
-                'https://english.cambodiadaily.com/?s=covid'
+                'https://www.khmertimeskh.com/?s=covid',  # CloudFlare anti-bot verification requires the use of selenium to emulate human execution of javascript pages
+                #'https://phnompenhpost.com/search/?query=covid',  # not working yet
+                #'https://english.cambodiadaily.com/?s=covid'  # not working yet
             ]
 
 
@@ -441,7 +445,7 @@ class CovidNewsSpider(scrapy.Spider):
                 splash:set_viewport_full()
                 local png = splash:png()
 
-                return {
+                yield {
                     url = splash:url(),
                     png = png,
                     html = splash:html(),
@@ -480,7 +484,7 @@ class CovidNewsSpider(scrapy.Spider):
                     print("splash:url() = ", splash:url())
 
                     -- Return the HTML of the page after fully loading all contents
-                    return splash:html()
+                    yield splash:html()
                 end
                 """
         else:
@@ -497,7 +501,7 @@ class CovidNewsSpider(scrapy.Spider):
                     print("splash:url() = ", splash:url())
 
                     -- Return HTML after waiting
-                    return splash:html()
+                    yield splash:html()
 
                 end
                 """
@@ -1808,10 +1812,16 @@ class CovidNewsSpider(scrapy.Spider):
             "– Hartford Courant/Tribune News Service",
             "– Bangkok Post, Thailand/Tribune News Service",
             "– Khaleej Times, Dubai/Tribune News Service",
+            "C. Nika – AKP",
+            "C. Nika -AKP",
+            "AKP-Lim Nary",
+            "bhf.org",
+            "Gavi.org",
             "burs/",
             "burs-",
             "bangkok post/",
             "CHINA DAILY/ANN",
+            "Khmer Times/Coventry Telegraph",
             "Email karnjanak@bangkokpost.co.th",
             "CONTACT: BANGKOK POST BUILDING",
             "MCI (P)",
@@ -1862,6 +1872,7 @@ class CovidNewsSpider(scrapy.Spider):
             "The Inquirer Foundation",
             "The Cambodia Daily is",
             "Philstar.com is one of the most ",
+            "Khmer Times is now available",
             "ADVT",
             "Best viewed on",
             "Report it to us",
@@ -1897,6 +1908,7 @@ class CovidNewsSpider(scrapy.Spider):
 
             # Check if phrases are in the buffer
             buffer_string = ' '.join(buffer).lower()
+            buffer_string_2 = ''.join(buffer).lower()
             #print(f"inside remove_footnote(), buffer_string = {buffer_string}")
 
             for phrase in search_phrases:
@@ -1909,9 +1921,13 @@ class CovidNewsSpider(scrapy.Spider):
                     if current_search_footnote_phrase_index < previous_search_footnote_phrase_index:
                         continue
 
-                if phrase in buffer_string:
+                if phrase in buffer_string or phrase in buffer_string_2:
                     # Find the position of the phrase in the buffer string
-                    phrase_start = buffer_string.find(phrase)
+                    if phrase in buffer_string:
+                        phrase_start = buffer_string.find(phrase)
+                    elif phrase in buffer_string_2:
+                        phrase_start = buffer_string_2.find(phrase)
+
                     phrase_end = phrase_start + len(phrase)
                     #print(f"inside remove_footnote(), phrase = {phrase}, phrase_start = {phrase_start}, phrase_end = {phrase_end}")
 
@@ -2298,7 +2314,7 @@ class CovidNewsSpider(scrapy.Spider):
                     print("date is None for go.kompas")
 
             elif 'khmertimeskh.com' in response.url:
-                body = response.xpath('//p[not(contains(., "Also Read:")) and not(contains(., "Also read:"))]//text()').getall()
+                body = response.xpath('//p[not(ancestor::div[@class="entry-navigation"]) and not(ancestor::div[@class="cpwp-wrap-text-stage"]) and not(contains(., "Also Read:")) and not(contains(., "Also read:")) and not(span[@style="color: #ffffff;" and normalize-space(text())="x"])]//text() | //li[ancestor::div[@class="entry-content"] and not(ancestor::ul[@class="rp4wp-posts-list"]) and not(ancestor::ul[@class="entry-fields"])]//text()').getall()
 
                 if title is None:
                     title = response.css('h2.entry-title::text').get()
@@ -2407,10 +2423,10 @@ class CovidNewsSpider(scrapy.Spider):
             # This is an early sign that the current webpage is containing multiple articles
             # url_had_redirected is not an absolute necessary condition that warrants the re-execution of parse()
             if self.parse_articles(response) is not None and \
-                (domain_name != 'phnompenhpost.com' and domain_name != "vietnamnews.vn" and domain_name != "en.vietnamplus.vn" and domain_name != "bangkokpost.com"):
+                (domain_name != 'khmertimeskh.com' and domain_name != 'phnompenhpost.com' and domain_name != "vietnamnews.vn" and domain_name != "en.vietnamplus.vn" and domain_name != "bangkokpost.com"):
                 # these domains have articles list even in the actual article, but we do not want to deal with the list now during article data writing phase
                 print(f"going back to parse() for {link}")
-                yield self.parse(response)
+                yield from self.parse(response)
 
             else:
                 self.write_to_local_data(response, link, title, body, date)
@@ -2494,7 +2510,7 @@ class CovidNewsSpider(scrapy.Spider):
 
             elif search_country == 'cambodia':
                 # https://en.wikipedia.org/wiki/COVID-19_pandemic_in_Cambodia#Timeline
-                date_is_within_covid_period = ((published_year >= 2020) and (published_year <= 2021))
+                date_is_within_covid_period = ((published_year >= 2020) and (published_year <= 2023))
 
         print(f"date = {date}, and published_year = {published_year}, and date_is_within_covid_period = {date_is_within_covid_period}")
 
