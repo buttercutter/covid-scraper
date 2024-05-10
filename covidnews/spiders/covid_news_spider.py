@@ -138,6 +138,7 @@ irrelevant_subdomain_names = ["channelnewsasia.com/watch/", "cnaluxury.channelne
                               "pop.inquirer.net", "inquirer.net/inqpop", "lifestyle.inquirer.net",
                               "philstar.com/sports", "philstar.com/lifestyle", "philstar.com/business",
                               "philstar.com/entertainment",
+                              "khmertimeskh.com/videos",
                               "phnompenhpost.com/financial", "phnompenhpost.com/business",
                               "phnompenhpost.com/label/opinion/business", "phnompenhpost.com/label/lifestyle/national/lifestyle/business",
                               "phnompenhpost.com/label/opinion/national/business", "phnompenhpost.com/label/opinion/national/lifestyle",
@@ -207,7 +208,7 @@ incomplete_articles = ["https://www.straitstimes.com/singapore/education/ask-san
                        "https://www.thestar.com.my/2003/07/27/one-big-shopping-spree--for-carnival",
                        "https://vnanet.vn/Frontend/TrackingView.aspx?IID=7155206",
                        "https://vnanet.vn/Frontend/TrackingView.aspx?IID=7167889",
-                       "https://www.khmertimeskh.com/videos/at-least-60-garment-workers-test-positive-for-covid-19-in-svay-rieng",
+                       "https://www.khmertimeskh.com/cambodia-covid-travel-restrictions-lockdowns-and-hotspots-map/",
                        "https://mb.com.ph/rss/articles"
                         ]
 
@@ -1747,6 +1748,7 @@ class CovidNewsSpider(scrapy.Spider):
             "Sources: Reuters",
             "(Source: AP)",
             "(Reporting by",
+            "(by Xinhua writer",
             "(Additional reporting by",
             "Additional reporting by",
             "Edited by",  # Comment this out for manual scraping due to truncated words for "accrEdited by"
@@ -1814,6 +1816,11 @@ class CovidNewsSpider(scrapy.Spider):
             "– Khaleej Times, Dubai/Tribune News Service",
             "C. Nika – AKP",
             "C. Nika -AKP",
+            "Pheng Somany – AKP",
+            "Pheng Somany -AKP",
+            "Chea Vannak – AKP",
+            "Chea Vannak -AKP",
+            "Chea Vannak/AKP/KT",
             "AKP-Lim Nary",
             "bhf.org",
             "Gavi.org",
@@ -1861,6 +1868,7 @@ class CovidNewsSpider(scrapy.Spider):
             "Subscribe now to",
             ". Subscribe to",
             "Already a subscriber?",
+            "Download the app and",
             "We use cookies",
             "Tags / Keywords:",
             "By registering, you agree with",
@@ -2314,7 +2322,10 @@ class CovidNewsSpider(scrapy.Spider):
                     print("date is None for go.kompas")
 
             elif 'khmertimeskh.com' in response.url:
-                body = response.xpath('//p[not(ancestor::div[@class="entry-navigation"]) and not(ancestor::div[@class="cpwp-wrap-text-stage"]) and not(contains(., "Also Read:")) and not(contains(., "Also read:")) and not(span[@style="color: #ffffff;" and normalize-space(text())="x"])]//text() | //li[ancestor::div[@class="entry-content"] and not(ancestor::ul[@class="rp4wp-posts-list"]) and not(ancestor::ul[@class="entry-fields"])]//text()').getall()
+                body = response.xpath('//p[ancestor::div[@class="entry-content"] and not(ancestor::div[@class="entry-navigation"]) and not(ancestor::div[@class="cpwp-wrap-text-stage"]) and not(contains(., "Also Read:")) and not(contains(., "Also read:")) and not(span[@style="color: #ffffff;" and normalize-space(text())="x"])][not(position()=last()) and not(position()=last()-1)]//text() | \
+                                       //p[ancestor::div[@class="entry-content"] and not(ancestor::div[@class="entry-navigation"]) and not(ancestor::div[@class="cpwp-wrap-text-stage"]) and not(contains(., "Also Read:")) and not(contains(., "Also read:")) and not(span[@style="color: #ffffff;" and normalize-space(text())="x"])][position()=last() or position()=last()-1]/text() | \
+                                       //p[ancestor::div[@class="entry-content"] and not(ancestor::div[@class="entry-navigation"]) and not(ancestor::div[@class="cpwp-wrap-text-stage"]) and not(contains(., "Also Read:")) and not(contains(., "Also read:")) and not(span[@style="color: #ffffff;" and normalize-space(text())="x"])][position()=last() or position()=last()-1]/*[not(self::em)]/text() | \
+                                       //li[ancestor::div[@class="entry-content"] and not(ancestor::ul[@class="rp4wp-posts-list"]) and not(ancestor::ul[@class="entry-fields"])]//text()').getall()
 
                 if title is None:
                     title = response.css('h2.entry-title::text').get()
